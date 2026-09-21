@@ -459,6 +459,7 @@
     setText("s-contactAddress", s.contactAddress);
 
     const aboutImg = $("#s-aboutImage"); if (aboutImg && s.aboutImage) aboutImg.src = s.aboutImage;
+    const dir = $("#mapDirections"); if (dir) dir.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(s.contactAddress || "");
 
     const phoneLink = $("#s-phoneLink"); if (phoneLink) phoneLink.href = "tel:" + (s.contactPhone || "").replace(/\s/g, "");
     const waLink = $("#s-whatsappLink"); if (waLink) waLink.href = "https://wa.me/" + (s.contactWhatsapp || "").replace(/[^\d]/g, "");
@@ -556,12 +557,32 @@
     track.innerHTML = list.map((src) => `<div class="brand-item"><img src="${src}" alt="شعار" loading="lazy" /></div>`).join("");
   }
 
+  function initMapCard() {
+    const card = $("#mapCard"), inner = $("#mapInner");
+    if (!card || !inner) return;
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("#mapDirections")) return; // let the link work
+      card.classList.toggle("is-expanded");
+    });
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.classList.toggle("is-expanded"); }
+    });
+    card.addEventListener("mousemove", (e) => {
+      const r = inner.getBoundingClientRect();
+      const rx = ((e.clientY - r.top - r.height / 2) / (r.height / 2)) * -6;
+      const ry = ((e.clientX - r.left - r.width / 2) / (r.width / 2)) * 6;
+      inner.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+    });
+    card.addEventListener("mouseleave", () => { inner.style.transform = "perspective(1000px) rotateX(0) rotateY(0)"; });
+  }
+
   function init() {
     applySettings();
     loadServices();
     renderServices();
     renderBrands();
     initSlider();
+    initMapCard();
     $("#year").textContent = new Date().getFullYear();
 
     // live update when settings/services/gallery change in another tab
