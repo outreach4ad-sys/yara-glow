@@ -15,7 +15,7 @@
   const CLOSE_MIN = 19 * 60;  // 19:00 (last appointment must end by this)
   const SLOT_STEP = 15;
 
-  const STORAGE_KEY = "yaraGlowBookings";
+  const STORAGE_KEY = "yaraGlowBookingsV2";
 
   /* ---------- State ---------- */
   const state = { service: null, provider: null, date: null, time: null, step: 1 };
@@ -32,16 +32,24 @@
   const dateKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const minToLabel = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 
+  // Bookings are stored as an array of full records (acts as the "database").
+  // record = { id, serviceId, serviceName, provider, dateKey, start, end,
+  //            duration, price, name, phone, status, createdAt }
   function getBookings() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
-    catch (e) { return {}; }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch (e) { return []; }
   }
-  function saveBooking(key, interval) {
+  function saveBookingRecord(rec) {
     const all = getBookings();
-    (all[key] = all[key] || []).push(interval); // interval = [startMin, endMin]
+    all.push(rec);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch (e) {}
   }
-  function bookedIntervals(key) { return getBookings()[key] || []; }
+  // Busy intervals for a given day + provider (cancelled bookings free the slot).
+  function bookedIntervals(dk, provider) {
+    return getBookings()
+      .filter((b) => b.dateKey === dk && b.provider === provider && b.status !== "cancelled")
+      .map((b) => [b.start, b.end]);
+  }
 
   function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
 
@@ -249,8 +257,7 @@
     const box = $("#timeSlots");
     const empty = $("#emptyTimes");
     const svc = state.service;
-    const key = dateKey(state.date) + "_" + state.provider;
-    const booked = bookedIntervals(key);
+    const booked = bookedIntervals(dateKey(state.date), state.provider);
 
     const now = new Date();
     const isToday = dateKey(state.date) === dateKey(startOfToday());
@@ -290,10 +297,27 @@
     const svc = state.service;
     const start = state.time;
     const end = start + svc.duration;
-    const key = dateKey(state.date) + "_" + state.provider;
-    saveBooking(key, [start, end]);
+    const name = ($("#custName").value || "").trim() || "زائرة";
+    const phone = ($("#custPhone").value || "").trim();
+
+    saveBookingRecord({
+      id: "bk_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+      serviceId: svc.id,
+      serviceName: svc.name,
+      provider: state.provider,
+      dateKey: dateKey(state.date),
+      start: start,
+      end: end,
+      duration: svc.duration,
+      price: svc.price,
+      name: name,
+      phone: phone,
+      status: "new",
+      createdAt: new Date().toISOString(),
+    });
 
     $("#bookingSummary").innerHTML = `
+      <div class="row"><span>الاسم</span><b>${name}</b></div>
       <div class="row"><span>الخدمة</span><b>${svc.name}</b></div>
       <div class="row"><span>المزوّدة</span><b>${state.provider}</b></div>
       <div class="row"><span>التاريخ</span><b>${formatDateAr(state.date)}</b></div>

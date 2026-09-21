@@ -125,6 +125,7 @@
         <a href="#" aria-label="إنستغرام">Instagram</a>
         <a href="#" aria-label="فيسبوك">Facebook</a>
         <a href="#" aria-label="تيك توك">TikTok</a>
+        <a href="admin.html" aria-label="لوحة التحكم">لوحة التحكم</a>
       </div>
     </div>
   </footer>
@@ -169,6 +170,16 @@
           <p class="step-hint">اختاري الوقت المناسب لكِ:</p>
           <div class="time-grid" id="timeSlots"></div>
           <div class="empty-times" id="emptyTimes" hidden>لا توجد أوقات متاحة في هذا اليوم، الرجاء اختيار يوم آخر.</div>
+          <div class="cust-fields">
+            <label class="field">
+              <span>الاسم</span>
+              <input type="text" id="custName" placeholder="اكتبي اسمكِ" autocomplete="name" />
+            </label>
+            <label class="field">
+              <span>رقم الهاتف <em>(اختياري)</em></span>
+              <input type="tel" id="custPhone" placeholder="05x-xxx-xxxx" autocomplete="tel" />
+            </label>
+          </div>
         </div>
 
         <!-- Confirmation -->

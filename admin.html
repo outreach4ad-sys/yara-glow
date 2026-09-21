@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>لوحة التحكم | Yara Glow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body class="admin-body">
+
+  <!-- ===== Login gate ===== -->
+  <div class="login-screen" id="loginScreen">
+    <form class="login-card" id="loginForm">
+      <div class="brand"><span class="brand-mark">✦</span><span class="brand-name">Yara <em>Glow</em></span></div>
+      <h1>لوحة التحكم</h1>
+      <p>هذه المنطقة محمية. الرجاء إدخال كلمة المرور للمتابعة.</p>
+      <label class="field">
+        <span>كلمة المرور</span>
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" required />
+      </label>
+      <p class="login-error" id="loginError" hidden>كلمة المرور غير صحيحة، حاولي مرة أخرى.</p>
+      <button type="submit" class="btn btn-primary btn-lg">دخول</button>
+      <a href="index.html" class="login-back">← العودة للموقع</a>
+    </form>
+  </div>
+
+  <!-- ===== Dashboard ===== -->
+  <div class="admin-shell" id="adminShell" hidden>
+    <header class="admin-header">
+      <div class="container admin-header-inner">
+        <a href="index.html" class="brand"><span class="brand-mark">✦</span><span class="brand-name">Yara <em>Glow</em></span></a>
+        <div class="admin-header-actions">
+          <span class="admin-hello">لوحة الحجوزات</span>
+          <button class="btn btn-ghost" id="btnLogout">تسجيل الخروج</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container admin-main">
+      <!-- Stat cards -->
+      <section class="stats" id="statsRow"></section>
+
+      <!-- Filters -->
+      <section class="filters">
+        <div class="filter">
+          <label for="fDay">اليوم</label>
+          <input type="date" id="fDay" />
+        </div>
+        <div class="filter">
+          <label for="fProvider">المزوّدة</label>
+          <select id="fProvider"><option value="">الكل</option></select>
+        </div>
+        <div class="filter">
+          <label for="fStatus">الحالة</label>
+          <select id="fStatus">
+            <option value="">الكل</option>
+            <option value="new">جديد</option>
+            <option value="confirmed">مؤكد</option>
+            <option value="completed">مكتمل</option>
+            <option value="cancelled">ملغى</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost filter-clear" id="btnClearFilters">مسح الفلترة</button>
+      </section>
+
+      <!-- Bookings -->
+      <section class="bookings" id="bookingsList"></section>
+      <div class="empty-state" id="emptyState" hidden>
+        <span>🗓️</span>
+        <p>لا توجد حجوزات مطابقة.</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
