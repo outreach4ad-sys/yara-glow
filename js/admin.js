@@ -111,13 +111,13 @@
     dashboardReady = true;
     migrateLegacy();
 
-    // populate provider filter from existing bookings
-    const providers = Array.from(new Set(getBookings().map((b) => b.provider))).sort();
-    const sel = $("#fProvider");
-    providers.forEach((p) => {
-      const o = document.createElement("option");
-      o.value = p; o.textContent = p; sel.appendChild(o);
-    });
+    populateProviderFilter();
+
+    // tab switching
+    $$(".tab").forEach((t) =>
+      t.addEventListener("click", () => switchView(t.dataset.view))
+    );
+    initServicesView();
 
     $("#fDay").addEventListener("change", render);
     $("#fProvider").addEventListener("change", render);
@@ -218,6 +218,139 @@
         render();
       })
     );
+  }
+
+  function populateProviderFilter() {
+    const sel = $("#fProvider");
+    const current = sel.value;
+    const fromServices = (window.YaraData ? window.YaraData.getServices() : []).flatMap((s) => s.providers);
+    const fromBookings = getBookings().map((b) => b.provider);
+    const providers = Array.from(new Set([...fromServices, ...fromBookings].filter(Boolean))).sort();
+    sel.innerHTML = `<option value="">الكل</option>` +
+      providers.map((p) => `<option value="${p}">${p}</option>`).join("");
+    sel.value = current;
+  }
+
+  /* ---------- View switching ---------- */
+  function switchView(view) {
+    $$(".tab").forEach((t) => t.classList.toggle("is-active", t.dataset.view === view));
+    $("#viewBookings").hidden = view !== "bookings";
+    $("#viewServices").hidden = view !== "services";
+    if (view === "bookings") { populateProviderFilter(); render(); }
+    if (view === "services") renderServicesAdmin();
+  }
+
+  /* ---------- Services management ---------- */
+  const DAYS = [
+    { n: 0, label: "الأحد" }, { n: 1, label: "الاثنين" }, { n: 2, label: "الثلاثاء" },
+    { n: 3, label: "الأربعاء" }, { n: 4, label: "الخميس" }, { n: 5, label: "الجمعة" }, { n: 6, label: "السبت" },
+  ];
+  const timeToMin = (t) => { const [h, m] = (t || "0:0").split(":").map(Number); return h * 60 + m; };
+  const minToTime = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+
+  function initServicesView() {
+    $("#btnAddService").addEventListener("click", () => {
+      const list = window.YaraData.getServices();
+      list.push(window.YaraData.newService());
+      window.YaraData.saveServices(list);
+      renderServicesAdmin();
+      // scroll to the newly added card
+      const cards = $$(".svc-edit");
+      if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
+  function serviceCardHTML(s) {
+    const daysHTML = DAYS.map((d) => `
+      <label class="day-check">
+        <input type="checkbox" data-day="${d.n}" ${s.days.includes(d.n) ? "checked" : ""} />
+        <span>${d.label}</span>
+      </label>`).join("");
+    return `
+      <div class="svc-edit" data-id="${s.id}">
+        <div class="svc-row">
+          <label class="field"><span>اسم الخدمة</span>
+            <input type="text" data-f="name" value="${escapeAttr(s.name)}" /></label>
+          <label class="field"><span>المدة (دقيقة)</span>
+            <input type="number" min="5" step="5" data-f="duration" value="${s.duration}" /></label>
+          <label class="field"><span>السعر (₪)</span>
+            <input type="number" min="0" step="5" data-f="price" value="${s.price}" /></label>
+        </div>
+        <label class="field"><span>مقدّمات الخدمة <em>(افصلي بين الأسماء بفاصلة)</em></span>
+          <input type="text" data-f="providers" value="${escapeAttr(s.providers.join("، "))}" placeholder="لينا، رنا، هبة" /></label>
+        <div class="svc-row">
+          <label class="field"><span>بداية الدوام</span>
+            <input type="time" data-f="open" value="${minToTime(s.openMin)}" /></label>
+          <label class="field"><span>نهاية الدوام</span>
+            <input type="time" data-f="close" value="${minToTime(s.closeMin)}" /></label>
+        </div>
+        <div class="field"><span>أيام العمل</span>
+          <div class="days-grid">${daysHTML}</div>
+        </div>
+        <div class="svc-actions">
+          <button class="btn btn-primary btn-save" data-act="save">حفظ</button>
+          <button class="btn btn-ghost btn-delete" data-act="delete">حذف الخدمة</button>
+        </div>
+      </div>`;
+  }
+
+  function escapeAttr(str) {
+    return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  }
+
+  function renderServicesAdmin() {
+    const box = $("#servicesAdmin");
+    const list = window.YaraData.getServices();
+    box.innerHTML = list.length
+      ? list.map(serviceCardHTML).join("")
+      : `<div class="empty-state"><span>💇‍♀️</span><p>لا توجد خدمات. أضيفي خدمة جديدة.</p></div>`;
+
+    $$(".svc-edit", box).forEach((card) => {
+      card.querySelector('[data-act="save"]').addEventListener("click", () => saveServiceCard(card));
+      card.querySelector('[data-act="delete"]').addEventListener("click", () => deleteService(card.dataset.id));
+    });
+  }
+
+  function saveServiceCard(card) {
+    const id = card.dataset.id;
+    const get = (f) => card.querySelector(`[data-f="${f}"]`);
+    const name = get("name").value.trim() || "خدمة";
+    const duration = Math.max(5, Number(get("duration").value) || 30);
+    const price = Math.max(0, Number(get("price").value) || 0);
+    const providers = get("providers").value.split(/[,،\n]/).map((x) => x.trim()).filter(Boolean);
+    const openMin = timeToMin(get("open").value);
+    const closeMin = timeToMin(get("close").value);
+    const days = $$('input[data-day]', card).filter((c) => c.checked).map((c) => Number(c.dataset.day));
+
+    // validation
+    if (!providers.length) { alert("الرجاء إدخال اسم مقدّمة واحدة على الأقل."); return; }
+    if (closeMin <= openMin) { alert("يجب أن تكون نهاية الدوام بعد بدايته."); return; }
+    if (closeMin - openMin < duration) { alert("مدة الدوام أقصر من مدة الخدمة."); return; }
+    if (!days.length) { alert("الرجاء تحديد يوم عمل واحد على الأقل."); return; }
+
+    const list = window.YaraData.getServices();
+    const idx = list.findIndex((s) => s.id === id);
+    const updated = { id, name, duration, price, providers, days, openMin, closeMin, img: (idx > -1 ? list[idx].img : "") };
+    if (idx > -1) list[idx] = updated; else list.push(updated);
+    window.YaraData.saveServices(list);
+
+    populateProviderFilter();
+    flashSaved();
+  }
+
+  function deleteService(id) {
+    if (!confirm("هل تريدين حذف هذه الخدمة؟")) return;
+    const list = window.YaraData.getServices().filter((s) => s.id !== id);
+    window.YaraData.saveServices(list);
+    renderServicesAdmin();
+    populateProviderFilter();
+  }
+
+  function flashSaved() {
+    const hint = $("#saveHint");
+    hint.hidden = false;
+    clearTimeout(flashSaved._t);
+    flashSaved._t = setTimeout(() => { hint.hidden = true; }, 2000);
   }
 
   /* ---------- Boot ---------- */

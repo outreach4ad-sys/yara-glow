@@ -3,17 +3,11 @@
   "use strict";
 
   /* ---------- Data ---------- */
-  const SERVICES = [
-    { id: "cut",     name: "قص وتصفيف",     duration: 45,  price: 60,  provider: "لينا", img: "assets/service-cut.svg",     desc: "قصّة عصرية وتصفيف يبرز إطلالتكِ." },
-    { id: "color",   name: "صبغة شعر",      duration: 90,  price: 150, provider: "رنا",  img: "assets/service-color.svg",   desc: "ألوان راقية بمنتجات آمنة على الشعر." },
-    { id: "skin",    name: "عناية بالبشرة", duration: 60,  price: 120, provider: "هبة",  img: "assets/service-skin.svg",    desc: "جلسة تنظيف وترطيب تمنح بشرتكِ نضارة." },
-    { id: "makeup",  name: "مكياج مناسبات", duration: 60,  price: 200, provider: "ليان", img: "assets/service-makeup.svg",  desc: "مكياج احترافي يليق بأجمل مناسباتكِ." },
-  ];
+  // Services are loaded from the shared store (managed in the admin dashboard).
+  let SERVICES = [];
+  function loadServices() { SERVICES = (window.YaraData ? window.YaraData.getServices() : []); }
 
-  // Working hours: 10:00 → 19:00, slots every 15 minutes
-  const OPEN_MIN = 10 * 60;   // 10:00
-  const CLOSE_MIN = 19 * 60;  // 19:00 (last appointment must end by this)
-  const SLOT_STEP = 15;
+  const SLOT_STEP = 15; // minutes between slots
 
   const STORAGE_KEY = "yaraGlowBookingsV2";
 
@@ -56,27 +50,33 @@
   /* ---------- Render: services section ---------- */
   function renderServices() {
     const grid = $("#servicesGrid");
-    grid.innerHTML = SERVICES.map((s) => `
+    grid.innerHTML = SERVICES.map((s) => {
+      const media = s.img
+        ? `<img src="${s.img}" alt="${s.name}" loading="lazy" />`
+        : `<div class="sc-placeholder">${s.name.charAt(0)}</div>`;
+      const provLabel = s.providers.length > 1
+        ? `${s.providers.length} مزوّدات`
+        : s.providers[0];
+      return `
       <article class="service-card">
         <div class="sc-media">
-          <img src="${s.img}" alt="${s.name}" loading="lazy" />
+          ${media}
           <span class="sc-price">₪ ${s.price}</span>
         </div>
         <div class="sc-body">
           <h3 class="sc-name">${s.name}</h3>
-          <p style="color:var(--ink-soft);font-size:.95rem;">${s.desc}</p>
           <div class="sc-meta">
             <span>⏱ ${s.duration} دقيقة</span>
             <span>₪ ${s.price}</span>
           </div>
           <div class="sc-provider">
-            <span class="sc-avatar">${s.provider.charAt(0)}</span>
-            <div><small>المزوّدة</small><b>${s.provider}</b></div>
+            <span class="sc-avatar">${s.providers[0].charAt(0)}</span>
+            <div><small>المزوّدة</small><b>${provLabel}</b></div>
           </div>
           <button class="btn btn-primary" data-book="${s.id}">احجزي</button>
         </div>
-      </article>
-    `).join("");
+      </article>`;
+    }).join("");
 
     $$("[data-book]", grid).forEach((btn) =>
       btn.addEventListener("click", () => openBooking(btn.dataset.book))
@@ -87,6 +87,7 @@
   const modal = $("#bookingModal");
 
   function openBooking(serviceId) {
+    loadServices(); // reflect any admin edits
     resetWizard();
     if (serviceId) {
       const svc = SERVICES.find((s) => s.id === serviceId);
@@ -179,22 +180,33 @@
       state.provider = state.date = state.time = null;
     }
     state.service = svc;
-    state.provider = svc.provider; // provider is tied to the service
+    // auto-select provider only when there is exactly one
+    state.provider = svc.providers.length === 1 ? svc.providers[0] : null;
     updateFooter();
   }
 
   /* ---------- Step 2: provider ---------- */
   function renderProviderOptions() {
     const box = $("#providerOptions");
-    const p = state.service.provider;
-    state.provider = p;
-    box.innerHTML = `
-      <button class="option is-selected" data-provider="${p}">
+    const providers = state.service.providers;
+    if (providers.length === 1) state.provider = providers[0];
+
+    box.innerHTML = providers.map((p) => `
+      <button class="option ${state.provider === p ? "is-selected" : ""}" data-provider="${p}">
         <span class="opt-avatar">${p.charAt(0)}</span>
         <span class="opt-text"><b>${p}</b><small>خبيرة ${state.service.name}</small></span>
-      </button>`;
-    // single provider is auto-selected; still allow explicit click (no-op)
-    $("[data-provider]", box).addEventListener("click", () => updateFooter());
+      </button>`).join("");
+
+    $$("[data-provider]", box).forEach((btn) =>
+      btn.addEventListener("click", () => {
+        if (state.provider !== btn.dataset.provider) {
+          state.provider = btn.dataset.provider;
+          state.time = null; // provider changed → time may differ
+        }
+        renderProviderOptions();
+        updateFooter();
+      })
+    );
     updateFooter();
   }
 
@@ -218,13 +230,16 @@
     // leading empties
     for (let i = 0; i < startDow; i++) cells += `<div class="cal-day cal-empty"></div>`;
     // days
+    const workDays = state.service.days; // allowed weekdays
     for (let d = 1; d <= daysInMonth; d++) {
       const cur = new Date(y, m, d);
       const isPast = cur < today;
+      const isClosed = !workDays.includes(cur.getDay());
+      const disabled = isPast || isClosed;
       const isToday = cur.getTime() === today.getTime();
       const isSelected = state.date && dateKey(state.date) === dateKey(cur);
-      cells += `<button class="cal-day ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}"
-                  data-day="${d}" ${isPast ? "disabled" : ""}>${d}</button>`;
+      cells += `<button class="cal-day ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""} ${isClosed && !isPast ? "is-closed" : ""}"
+                  data-day="${d}" ${disabled ? "disabled" : ""} title="${isClosed && !isPast ? "يوم إجازة" : ""}">${d}</button>`;
     }
 
     cal.innerHTML = `
@@ -273,7 +288,7 @@
     let html = "";
     let available = 0;
 
-    for (let start = OPEN_MIN; start + svc.duration <= CLOSE_MIN; start += SLOT_STEP) {
+    for (let start = svc.openMin; start + svc.duration <= svc.closeMin; start += SLOT_STEP) {
       const end = start + svc.duration;
       // conflict with an existing booking?
       const overlaps = booked.some(([bs, be]) => start < be && end > bs);
@@ -380,6 +395,7 @@
 
   /* ---------- Wire up ---------- */
   function init() {
+    loadServices();
     renderServices();
     $("#year").textContent = new Date().getFullYear();
 

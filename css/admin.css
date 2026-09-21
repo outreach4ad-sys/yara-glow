@@ -34,6 +34,49 @@
 .admin-header .brand { font-size: 1.3rem; }
 .admin-header-actions { display: flex; align-items: center; gap: 16px; }
 .admin-hello { color: var(--ink-soft); font-weight: 500; }
+
+/* Tabs */
+.admin-tabs { display: flex; gap: 6px; background: var(--beige-100); padding: 4px; border-radius: 999px; }
+.admin-tabs .tab {
+  font-family: var(--font); font-weight: 700; font-size: .95rem; cursor: pointer;
+  border: none; background: transparent; color: var(--ink-soft);
+  padding: 8px 20px; border-radius: 999px; transition: all .18s;
+}
+.admin-tabs .tab.is-active { background: var(--white); color: var(--gold-dark); box-shadow: var(--shadow-sm); }
+
+/* Services admin */
+.services-admin-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 22px; }
+.sa-title { font-family: var(--font-display); font-size: 1.7rem; }
+.sa-sub { color: var(--ink-soft); font-size: .95rem; margin-top: 4px; max-width: 640px; }
+.svc-edit {
+  background: var(--white); border-radius: var(--radius); padding: 22px;
+  box-shadow: var(--shadow-sm); border: 1px solid rgba(201,161,90,.12); margin-bottom: 18px;
+}
+.svc-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; }
+.svc-edit .field { margin-top: 14px; }
+.svc-edit .field:first-child, .svc-row .field { margin-top: 0; }
+.svc-row + .field, .svc-edit > .field { margin-top: 14px; }
+.svc-edit .field span { font-size: .88rem; font-weight: 700; color: var(--ink); margin-bottom: 6px; display: block; }
+.svc-edit .field span em { font-weight: 400; color: var(--ink-soft); }
+.svc-edit input {
+  width: 100%; font-family: var(--font); font-size: .98rem; padding: 10px 12px;
+  border: 1.5px solid var(--sand); border-radius: 10px; background: var(--beige-50); color: var(--ink);
+}
+.svc-edit input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,161,90,.16); }
+.days-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.day-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  background: var(--beige-50); border: 1.5px solid var(--sand); border-radius: 10px; padding: 7px 12px; font-size: .9rem; font-weight: 600; }
+.day-check input { width: auto; accent-color: var(--gold-dark); }
+.day-check:has(input:checked) { background: var(--blush); border-color: var(--gold); color: var(--gold-dark); }
+.svc-actions { display: flex; gap: 10px; margin-top: 18px; }
+.btn-delete { color: #c0392b; border-color: rgba(192,57,43,.4); }
+.btn-delete:hover { background: rgba(192,57,43,.08); border-color: #c0392b; }
+.save-hint { color: #1f7a52; font-weight: 700; text-align: center; padding: 8px; }
+
+@media (max-width: 560px) {
+  .svc-row { grid-template-columns: 1fr; }
+  .admin-tabs .tab { padding: 8px 14px; }
+}
 .admin-main { padding-block: 30px 60px; }
 
 /* ---- Stats ---- */
