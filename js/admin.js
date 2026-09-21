@@ -30,6 +30,36 @@
   function formatDateAr(dk) { const d = parseKey(dk); return `${AR_DOW[d.getDay()]} ${d.getDate()} ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
 
   /* ---------- Data (LocalStorage as DB) ---------- */
+  const OLD_KEY = "yaraGlowBookings"; // legacy format: { "dateKey_provider": [[start,end],...] }
+
+  // One-time migration of any bookings saved by an older cached app.js.
+  function migrateLegacy() {
+    let legacy;
+    try { legacy = JSON.parse(localStorage.getItem(OLD_KEY)); } catch (e) { return; }
+    if (!legacy || typeof legacy !== "object" || Array.isArray(legacy)) return;
+
+    const current = getBookings();
+    let added = 0;
+    Object.keys(legacy).forEach((key) => {
+      const idx = key.lastIndexOf("_");
+      const dk = idx > -1 ? key.slice(0, idx) : key;
+      const provider = idx > -1 ? key.slice(idx + 1) : "—";
+      (legacy[key] || []).forEach(([start, end]) => {
+        current.push({
+          id: "legacy_" + dk + "_" + start,
+          serviceId: "", serviceName: "حجز (نسخة سابقة)", provider: provider,
+          dateKey: dk, start: start, end: end, duration: end - start, price: 0,
+          name: "—", phone: "", status: "new", createdAt: new Date().toISOString(),
+        });
+        added++;
+      });
+    });
+    if (added) {
+      saveAll(current);
+      try { localStorage.removeItem(OLD_KEY); } catch (e) {}
+    }
+  }
+
   function getBookings() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
     catch (e) { return []; }
@@ -79,6 +109,7 @@
   function initDashboard() {
     if (dashboardReady) { render(); return; }
     dashboardReady = true;
+    migrateLegacy();
 
     // populate provider filter from existing bookings
     const providers = Array.from(new Set(getBookings().map((b) => b.provider))).sort();
