@@ -458,6 +458,8 @@
     setText("s-contactPhone", s.contactPhone);
     setText("s-contactAddress", s.contactAddress);
 
+    const aboutImg = $("#s-aboutImage"); if (aboutImg && s.aboutImage) aboutImg.src = s.aboutImage;
+
     const phoneLink = $("#s-phoneLink"); if (phoneLink) phoneLink.href = "tel:" + (s.contactPhone || "").replace(/\s/g, "");
     const waLink = $("#s-whatsappLink"); if (waLink) waLink.href = "https://wa.me/" + (s.contactWhatsapp || "").replace(/[^\d]/g, "");
 

@@ -168,6 +168,7 @@
   background: linear-gradient(135deg, var(--rose), var(--gold)); color: #fff; font-size: 1.8rem; overflow: hidden; }
 .logo-preview img { width: 100%; height: 100%; object-fit: cover; }
 .logo-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.about-preview { width: 110px; height: 74px; border-radius: 12px; font-size: .8rem; }
 
 /* users */
 .user-add { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }

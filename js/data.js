@@ -40,6 +40,7 @@ window.YaraData = (function () {
     servicesDesc: "اختاري الخدمة التي تناسبكِ واحجزي موعدكِ في خطوات بسيطة.",
     aboutTitle: "جمالكِ.. شغفنا",
     aboutText: "في Yara Glow نؤمن أنّ لكلّ امرأة تألّقها الخاص. لذلك نقدّم خدمات تجميل راقية تعتمد على أجود المنتجات وأحدث التقنيات، ضمن بيئة نظيفة وهادئة صُمّمت خصيصاً لراحتكِ.",
+    aboutImage: "assets/about.svg",
     contactPhone: "059-000-0000",
     contactWhatsapp: "970590000000",
     contactAddress: "شارع الجمال، المدينة",

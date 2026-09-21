@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=13" />
-  <link rel="stylesheet" href="css/admin.css?v=13" />
+  <link rel="stylesheet" href="css/styles.css?v=14" />
+  <link rel="stylesheet" href="css/admin.css?v=14" />
 </head>
 <body class="admin-body">
 
@@ -166,6 +166,16 @@
             <label class="field"><span>وصف قسم الخدمات</span><input type="text" data-s="servicesDesc" /></label>
             <label class="field"><span>عنوان «من نحن»</span><input type="text" data-s="aboutTitle" /></label>
             <label class="field"><span>نص «من نحن»</span><textarea rows="3" data-s="aboutText"></textarea></label>
+            <div class="field"><span>صورة «من نحن»</span>
+              <div class="logo-row">
+                <div class="logo-preview about-preview" id="aboutImgPreview">صورة</div>
+                <div class="logo-actions">
+                  <input type="file" id="aboutImgFile" accept="image/*" hidden />
+                  <button class="btn btn-ghost" id="btnAboutUpload">رفع صورة</button>
+                  <button class="btn btn-ghost" id="btnAboutClear">إزالة</button>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section class="settings-card">
@@ -253,8 +263,8 @@
   <div class="toast-wrap" id="toastWrap"></div>
   <audio id="notifySound" src="assets/notify.mp3" preload="auto"></audio>
 
-  <script src="js/cloud.js?v=13"></script>
-  <script src="js/data.js?v=13"></script>
-  <script src="js/admin.js?v=13"></script>
+  <script src="js/cloud.js?v=14"></script>
+  <script src="js/data.js?v=14"></script>
+  <script src="js/admin.js?v=14"></script>
 </body>
 </html>

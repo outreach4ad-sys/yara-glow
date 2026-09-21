@@ -623,6 +623,10 @@
     $("#logoFile").addEventListener("change", () =>
       readImageFile($("#logoFile"), (dataUrl) => { $("#logoPreview").innerHTML = `<img src="${dataUrl}" alt="" />`; $("#logoPreview").dataset.logo = dataUrl; }));
     $("#btnLogoClear").addEventListener("click", () => { $("#logoPreview").innerHTML = "✦"; $("#logoPreview").dataset.logo = ""; });
+    $("#btnAboutUpload").addEventListener("click", () => $("#aboutImgFile").click());
+    $("#aboutImgFile").addEventListener("change", () =>
+      readImageFile($("#aboutImgFile"), (dataUrl) => { $("#aboutImgPreview").innerHTML = `<img src="${dataUrl}" alt="" />`; $("#aboutImgPreview").dataset.img = dataUrl; saveSettingsFromForm(true); }));
+    $("#btnAboutClear").addEventListener("click", () => { const d = "assets/about.svg"; $("#aboutImgPreview").innerHTML = `<img src="${d}" alt="" />`; $("#aboutImgPreview").dataset.img = d; saveSettingsFromForm(true); });
     $("#btnAddUser").addEventListener("click", addUser);
     // live preview on text/color change
     $$('#viewSettings [data-s], #viewSettings [data-c]').forEach((inp) =>
@@ -636,6 +640,10 @@
     const lp = $("#logoPreview");
     lp.dataset.logo = s.logo || "";
     lp.innerHTML = s.logo ? `<img src="${esc(s.logo)}" alt="" />` : "✦";
+    const ap = $("#aboutImgPreview");
+    const aboutImg = s.aboutImage || "assets/about.svg";
+    ap.dataset.img = aboutImg;
+    ap.innerHTML = `<img src="${esc(aboutImg)}" alt="" />`;
     renderUsers();
   }
 
@@ -644,6 +652,7 @@
     $$('#viewSettings [data-s]').forEach((inp) => { s[inp.dataset.s] = inp.value; });
     $$('#viewSettings [data-c]').forEach((inp) => { s.colors[inp.dataset.c] = inp.value; });
     s.logo = $("#logoPreview").dataset.logo || "";
+    s.aboutImage = $("#aboutImgPreview").dataset.img || "assets/about.svg";
     window.YaraData.saveSettings(s);
     if (!silent) flashSaved();
   }
