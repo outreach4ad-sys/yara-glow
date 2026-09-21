@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=11" />
-  <link rel="stylesheet" href="css/admin.css?v=11" />
+  <link rel="stylesheet" href="css/styles.css?v=13" />
+  <link rel="stylesheet" href="css/admin.css?v=13" />
 </head>
 <body class="admin-body">
 
@@ -18,13 +18,19 @@
     <form class="login-card" id="loginForm">
       <div class="brand"><span class="brand-mark">✦</span><span class="brand-name">Yara <em>Glow</em></span></div>
       <h1>لوحة التحكم</h1>
-      <p>هذه المنطقة محمية. الرجاء إدخال كلمة المرور للمتابعة.</p>
+      <p>هذه المنطقة محمية. الرجاء تسجيل الدخول للمتابعة.</p>
+      <label class="field">
+        <span>اسم المستخدم</span>
+        <input type="text" id="loginUser" placeholder="admin" autocomplete="username" required />
+      </label>
       <label class="field">
         <span>كلمة المرور</span>
         <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" required />
       </label>
-      <p class="login-error" id="loginError" hidden>كلمة المرور غير صحيحة، حاولي مرة أخرى.</p>
-      <button type="submit" class="btn btn-primary btn-lg">دخول</button>
+      <label class="remember-row"><input type="checkbox" id="loginRemember" checked /> <span>تذكّرني على هذا الجهاز</span></label>
+      <p class="login-error" id="loginError" hidden></p>
+      <button type="submit" class="btn btn-primary btn-lg" id="loginBtn">دخول</button>
+      <p class="login-hint">الدخول الافتراضي: <b>admin</b> / <b>yara2026</b> — يمكن تغييره بعد الدخول.</p>
       <a href="index.html" class="login-back">← العودة للموقع</a>
     </form>
   </div>
@@ -39,8 +45,10 @@
           <button class="tab" data-view="services">الخدمات</button>
           <button class="tab" data-view="gallery">المعرض</button>
           <button class="tab" data-view="settings">الإعدادات</button>
+          <button class="tab" data-view="admins">المشرفون</button>
         </nav>
         <div class="admin-header-actions">
+          <span class="current-user" id="currentUserLabel"></span>
           <span class="cloud-status" id="cloudStatus" title="حالة المزامنة">● …</span>
           <button class="btn btn-ghost" id="btnSaveChanges">حفظ التغييرات</button>
           <button class="btn btn-ghost" id="btnClearCache">حذف الكاش</button>
@@ -78,7 +86,7 @@
 
         <section class="bookings" id="bookingsList"></section>
         <div class="empty-state" id="emptyState" hidden>
-          <span>🗓️</span>
+          <span class="es-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
           <p>لا توجد حجوزات مطابقة.</p>
         </div>
       </div>
@@ -179,6 +187,47 @@
           </section>
         </div>
       </div>
+
+      <!-- ===== View: Admins ===== -->
+      <div id="viewAdmins" hidden>
+        <div class="services-admin-head">
+          <div>
+            <h2 class="sa-title">المشرفون والصلاحيات</h2>
+            <p class="sa-sub">أضيفي مشرفين جدداً بصلاحيات محددة (استقبال المواعيد، تعديل الخدمات، المعرض، الإعدادات).</p>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <section class="settings-card">
+            <h3>تغيير كلمة مروري</h3>
+            <label class="field"><span>كلمة المرور الحالية</span><input type="password" id="cpOld" autocomplete="current-password" /></label>
+            <label class="field"><span>كلمة المرور الجديدة</span><input type="password" id="cpNew" autocomplete="new-password" /></label>
+            <button class="btn btn-primary" id="btnChangePass" style="margin-top:12px;">تحديث كلمة المرور</button>
+            <p class="save-hint" id="cpHint" hidden>✓ تم التحديث</p>
+          </section>
+
+          <section class="settings-card" id="addAdminCard">
+            <h3>إضافة مشرف جديد</h3>
+            <label class="field"><span>اسم المستخدم</span><input type="text" id="naUser" autocomplete="off" /></label>
+            <label class="field"><span>كلمة المرور</span><input type="password" id="naPass" autocomplete="new-password" /></label>
+            <div class="field"><span>الصلاحيات</span>
+              <div class="perms-grid" id="naPerms">
+                <label class="day-check"><input type="checkbox" data-perm="bookings" checked /><span>استقبال المواعيد</span></label>
+                <label class="day-check"><input type="checkbox" data-perm="services" checked /><span>تعديل الخدمات</span></label>
+                <label class="day-check"><input type="checkbox" data-perm="gallery" /><span>المعرض</span></label>
+                <label class="day-check"><input type="checkbox" data-perm="settings" /><span>الإعدادات</span></label>
+                <label class="day-check"><input type="checkbox" data-perm="manageAdmins" /><span>إدارة المشرفين</span></label>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btnAddAdmin" style="margin-top:14px;">إضافة المشرف</button>
+          </section>
+
+          <section class="settings-card settings-wide">
+            <h3>قائمة المشرفين</h3>
+            <div id="adminsList"></div>
+          </section>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -204,8 +253,8 @@
   <div class="toast-wrap" id="toastWrap"></div>
   <audio id="notifySound" src="assets/notify.mp3" preload="auto"></audio>
 
-  <script src="js/cloud.js?v=11"></script>
-  <script src="js/data.js?v=11"></script>
-  <script src="js/admin.js?v=11"></script>
+  <script src="js/cloud.js?v=13"></script>
+  <script src="js/data.js?v=13"></script>
+  <script src="js/admin.js?v=13"></script>
 </body>
 </html>

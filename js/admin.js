@@ -3,10 +3,13 @@
   "use strict";
 
   /* ---------- Config ---------- */
-  // ⚠️ كلمة مرور بسيطة للحماية من طرف العميل. غيّريها قبل النشر.
-  const ADMIN_PASSWORD = "yara2026";
-  const AUTH_KEY = "yaraGlowAdminAuth";
+  const AUTH_API = "api/auth.php";
+  const SESSION_KEY = "yaraGlowSession";
   const STORAGE_KEY = "yaraGlowBookingsV2";
+  let currentUser = null;   // { username, role, perms }
+  let authToken = null;
+  const fullPerms = () => ({ bookings: true, services: true, gallery: true, settings: true, manageAdmins: true });
+  const can = (k) => !!(currentUser && (currentUser.role === "owner" || (currentUser.perms && currentUser.perms[k])));
   const OLD_KEY = "yaraGlowBookings";
   const NOTIFIED_KEY = "yaraGlowLastNotified";
 
@@ -27,6 +30,15 @@
   const minToLabel = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
   const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
   const esc = (str) => String(str == null ? "" : str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+
+  const SVG = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const ICONS = {
+    bell: SVG('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'),
+    calendar: SVG('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'),
+    image: SVG('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>'),
+    scissors: SVG('<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/>'),
+    user: SVG('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+  };
 
   function parseKey(dk) { const [y, m, d] = dk.split("-").map(Number); return new Date(y, m - 1, d); }
   function formatDateAr(dk) { const d = parseKey(dk); return `${AR_DOW[d.getDay()]} ${d.getDate()} ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
@@ -67,25 +79,84 @@
     if (added) { saveAll(current); try { localStorage.removeItem(OLD_KEY); } catch (e) {} }
   }
 
-  /* ---------- Auth ---------- */
-  function isAuthed() { try { return sessionStorage.getItem(AUTH_KEY) === "1"; } catch (e) { return false; } }
+  /* ---------- Auth (username/password via api/auth.php) ---------- */
+  async function authFetch(payload) {
+    try {
+      const r = await fetch(AUTH_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await r.json().catch(() => ({}));
+      return { ok: r.ok, status: r.status, data };
+    } catch (e) { return { ok: false, offline: true, data: null }; }
+  }
+  function saveSession(sess, remember) {
+    const s = JSON.stringify(sess);
+    try {
+      (remember ? localStorage : sessionStorage).setItem(SESSION_KEY, s);
+      (remember ? sessionStorage : localStorage).removeItem(SESSION_KEY);
+    } catch (e) {}
+  }
+  function loadSession() {
+    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY) || "null"); }
+    catch (e) { return null; }
+  }
+  function clearSession() { try { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
+
   function showDashboard() {
     const login = $("#loginScreen"), shell = $("#adminShell");
     login.hidden = true; login.style.display = "none";
     shell.hidden = false; shell.style.display = "block";
     initDashboard();
+    applyPermissions();
   }
-  function initAuth() {
-    if (isAuthed()) { showDashboard(); return; }
-    $("#loginForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      if ($("#loginPass").value === ADMIN_PASSWORD) {
-        try { sessionStorage.setItem(AUTH_KEY, "1"); } catch (err) {}
-        $("#loginError").hidden = true; showDashboard();
-      } else {
-        $("#loginError").hidden = false; $("#loginPass").value = ""; $("#loginPass").focus();
+  function showLoginError(msg) { const el = $("#loginError"); if (!msg) { el.hidden = true; return; } el.textContent = msg; el.hidden = false; }
+
+  async function initAuth() {
+    const sess = loadSession();
+    if (sess && sess.token) {
+      if (sess.token === "offline") { currentUser = sess.user; authToken = "offline"; showDashboard(); return; }
+      const res = await authFetch({ action: "me", token: sess.token });
+      if (res.ok && res.data && res.data.ok) { currentUser = res.data.user; authToken = sess.token; showDashboard(); return; }
+      if (res.offline) { currentUser = sess.user; authToken = sess.token; showDashboard(); return; }
+      clearSession();
+    }
+    $("#loginForm").addEventListener("submit", onLogin);
+  }
+
+  async function onLogin(e) {
+    e.preventDefault();
+    const u = $("#loginUser").value.trim(), p = $("#loginPass").value, remember = $("#loginRemember").checked;
+    const btn = $("#loginBtn"); btn.disabled = true; const old = btn.textContent; btn.textContent = "جارٍ الدخول…";
+    const res = await authFetch({ action: "login", username: u, password: p });
+    btn.disabled = false; btn.textContent = old;
+    if (res.offline) {
+      // no PHP server reachable → allow the default owner locally
+      if (u === "admin" && p === "yara2026") {
+        currentUser = { username: "admin", role: "owner", perms: fullPerms() }; authToken = "offline";
+        saveSession({ token: "offline", user: currentUser }, remember); showLoginError(""); showDashboard(); return;
       }
-    });
+      return showLoginError("تعذّر الاتصال بالخادم. تأكّدي من تفعيل PHP، أو ادخلي بـ admin/yara2026 مؤقتاً.");
+    }
+    if (res.ok && res.data && res.data.ok) {
+      currentUser = res.data.user; authToken = res.data.token;
+      saveSession({ token: authToken, user: currentUser }, remember);
+      showLoginError(""); $("#loginPass").value = ""; showDashboard(); return;
+    }
+    showLoginError((res.data && res.data.error) || "فشل تسجيل الدخول");
+  }
+
+  /* ---------- Permission gating ---------- */
+  function setTabVisible(view, vis) { const t = document.querySelector(`.tab[data-view="${view}"]`); if (t) t.style.display = vis ? "" : "none"; }
+  function applyPermissions() {
+    setTabVisible("bookings", can("bookings"));
+    setTabVisible("services", can("services"));
+    setTabVisible("gallery", can("gallery"));
+    setTabVisible("settings", can("settings"));
+    setTabVisible("admins", can("manageAdmins"));
+    // show current user name
+    const label = $("#currentUserLabel");
+    if (label && currentUser) label.innerHTML = `<span class="ul-icon">${ICONS.user}</span> ${esc(currentUser.username)}${currentUser.role === "owner" ? " (مالك)" : ""}`;
+    // open the first permitted view
+    const first = ["bookings", "services", "gallery", "settings", "admins"].find((v) => can(v)) || "bookings";
+    switchView(first);
   }
 
   /* ---------- Dashboard init ---------- */
@@ -111,10 +182,11 @@
     $("#btnClearFilters").addEventListener("click", () => {
       $("#fDay").value = ""; $("#fProvider").value = ""; $("#fStatus").value = ""; render();
     });
-    $("#btnLogout").addEventListener("click", () => {
-      try { sessionStorage.removeItem(AUTH_KEY); } catch (e) {}
-      location.reload();
+    $("#btnLogout").addEventListener("click", async () => {
+      if (authToken && authToken !== "offline") await authFetch({ action: "logout", token: authToken });
+      clearSession(); location.reload();
     });
+    initAdminsView();
 
     // notifications + cross-device cloud sync
     initLastNotified();
@@ -200,14 +272,20 @@
   /* ---------- View switching ---------- */
   function switchView(view) {
     $$(".tab").forEach((t) => t.classList.toggle("is-active", t.dataset.view === view));
+    // block access to views the user has no permission for
+    const permKey = { bookings: "bookings", services: "services", gallery: "gallery", settings: "settings", admins: "manageAdmins" }[view];
+    if (permKey && !can(permKey)) return;
+    $$(".tab").forEach((t) => t.classList.toggle("is-active", t.dataset.view === view));
     $("#viewBookings").hidden = view !== "bookings";
     $("#viewServices").hidden = view !== "services";
     $("#viewSettings").hidden = view !== "settings";
     $("#viewGallery").hidden = view !== "gallery";
+    $("#viewAdmins").hidden = view !== "admins";
     if (view === "bookings") { populateProviderFilter(); render(); }
     if (view === "services") renderServicesAdmin();
     if (view === "settings") renderSettings();
     if (view === "gallery") renderGalleryAdmin();
+    if (view === "admins") renderAdminsView();
   }
 
   /* ---------- Bookings rendering ---------- */
@@ -376,7 +454,7 @@
     const t = document.createElement("div");
     t.className = "toast";
     t.innerHTML = `
-      <span class="toast-icon">🔔</span>
+      <span class="toast-icon">${ICONS.bell}</span>
       <div class="toast-body">
         <b>حجز جديد!</b>
         <small>${esc(b.name)} · ${esc(b.serviceName)}</small>
@@ -458,7 +536,7 @@
     const box = $("#servicesAdmin");
     const list = window.YaraData.getServices();
     box.innerHTML = list.length ? list.map(serviceCardHTML).join("")
-      : `<div class="empty-state"><span>💇‍♀️</span><p>لا توجد خدمات. أضيفي خدمة جديدة.</p></div>`;
+      : `<div class="empty-state"><span class="es-icon">${ICONS.scissors}</span><p>لا توجد خدمات. أضيفي خدمة جديدة.</p></div>`;
 
     $$(".svc-edit", box).forEach((card) => {
       const imgInput = card.querySelector('[data-f="img"]');
@@ -628,7 +706,7 @@
             <button data-del title="حذف" class="gal-del">✕</button>
           </div>
         </div>`).join("")
-      : `<div class="empty-state"><span>🖼️</span><p>لا توجد صور. ارفعي صوراً للمعرض.</p></div>`;
+      : `<div class="empty-state"><span class="es-icon">${ICONS.image}</span><p>لا توجد صور. ارفعي صوراً للمعرض.</p></div>`;
 
     $$(".gal-item", box).forEach((el) => {
       const i = Number(el.dataset.i);
@@ -648,6 +726,86 @@
   function flashGallery() {
     const h = $("#galleryHint"); h.hidden = false; clearTimeout(flashGallery._t);
     flashGallery._t = setTimeout(() => { h.hidden = true; }, 2000);
+  }
+
+  /* ---------- Admins management ---------- */
+  const PERM_LABELS = { bookings: "المواعيد", services: "الخدمات", gallery: "المعرض", settings: "الإعدادات", manageAdmins: "إدارة المشرفين" };
+
+  function initAdminsView() {
+    $("#btnChangePass").addEventListener("click", changeMyPassword);
+    $("#btnAddAdmin").addEventListener("click", addAdmin);
+  }
+
+  async function changeMyPassword() {
+    const oldp = $("#cpOld").value, newp = $("#cpNew").value;
+    if (!newp || newp.length < 4) { alert("كلمة المرور الجديدة يجب أن تكون 4 أحرف فأكثر."); return; }
+    if (authToken === "offline") { alert("تغيير كلمة المرور يتطلّب اتصال الخادم (PHP)."); return; }
+    const res = await authFetch({ action: "changePassword", token: authToken, oldPassword: oldp, newPassword: newp });
+    if (res.ok && res.data && res.data.ok) {
+      $("#cpOld").value = ""; $("#cpNew").value = "";
+      const h = $("#cpHint"); h.hidden = false; setTimeout(() => { h.hidden = true; }, 2000);
+    } else alert((res.data && res.data.error) || "تعذّر تحديث كلمة المرور.");
+  }
+
+  async function addAdmin() {
+    if (authToken === "offline") { alert("إضافة مشرفين تتطلّب اتصال الخادم (PHP)."); return; }
+    const username = $("#naUser").value.trim(), password = $("#naPass").value;
+    if (!username || password.length < 4) { alert("أدخلي اسم مستخدم وكلمة مرور (4 أحرف فأكثر)."); return; }
+    const perms = {};
+    $$('#naPerms input[data-perm]').forEach((c) => { perms[c.dataset.perm] = c.checked; });
+    const res = await authFetch({ action: "admins.create", token: authToken, username, password, role: "admin", perms });
+    if (res.ok && res.data && res.data.ok) {
+      $("#naUser").value = ""; $("#naPass").value = "";
+      renderAdminsView();
+    } else alert((res.data && res.data.error) || "تعذّر إضافة المشرف.");
+  }
+
+  async function renderAdminsView() {
+    const box = $("#adminsList");
+    if (authToken === "offline") {
+      $("#addAdminCard").style.display = "none";
+      box.innerHTML = `<p class="hint-small">إدارة المشرفين تتطلّب اتصال الخادم (PHP). أنتِ الآن في وضع عدم الاتصال بحساب المالك الافتراضي.</p>`;
+      return;
+    }
+    $("#addAdminCard").style.display = "";
+    const res = await authFetch({ action: "admins.list", token: authToken });
+    if (!res.ok || !res.data || !res.data.ok) { box.innerHTML = `<p class="hint-small">تعذّر جلب قائمة المشرفين.</p>`; return; }
+    const admins = res.data.admins || [];
+    box.innerHTML = admins.map((a) => {
+      const isOwner = a.role === "owner";
+      const permChecks = ["bookings","services","gallery","settings","manageAdmins"].map((k) =>
+        `<label class="day-check"><input type="checkbox" data-perm="${k}" ${a.perms[k] ? "checked" : ""} ${isOwner ? "disabled" : ""} /><span>${PERM_LABELS[k]}</span></label>`).join("");
+      return `
+        <div class="admin-row" data-user="${esc(a.username)}">
+          <div class="admin-row-head">
+            <b>${esc(a.username)}</b>
+            <span class="admin-role ${isOwner ? "owner" : ""}">${isOwner ? "مالك" : "مشرف"}</span>
+          </div>
+          <div class="perms-grid">${permChecks}</div>
+          <div class="admin-row-actions">
+            ${isOwner ? "" : `<button class="btn btn-ghost" data-save-perms>حفظ الصلاحيات</button>
+            <button class="btn btn-ghost btn-delete" data-del-admin>حذف</button>`}
+          </div>
+        </div>`;
+    }).join("");
+
+    $$(".admin-row", box).forEach((row) => {
+      const username = row.dataset.user;
+      const saveBtn = row.querySelector("[data-save-perms]");
+      const delBtn = row.querySelector("[data-del-admin]");
+      if (saveBtn) saveBtn.addEventListener("click", async () => {
+        const perms = {}; $$('input[data-perm]', row).forEach((c) => { perms[c.dataset.perm] = c.checked; });
+        const r = await authFetch({ action: "admins.update", token: authToken, username, perms });
+        if (r.ok && r.data && r.data.ok) { saveBtn.textContent = "✓ حُفظت"; setTimeout(() => { saveBtn.textContent = "حفظ الصلاحيات"; }, 1500); }
+        else alert((r.data && r.data.error) || "تعذّر الحفظ.");
+      });
+      if (delBtn) delBtn.addEventListener("click", async () => {
+        if (!confirm(`حذف المشرف "${username}"؟`)) return;
+        const r = await authFetch({ action: "admins.delete", token: authToken, username });
+        if (r.ok && r.data && r.data.ok) renderAdminsView();
+        else alert((r.data && r.data.error) || "تعذّر الحذف.");
+      });
+    });
   }
 
   /* ---------- Boot ---------- */

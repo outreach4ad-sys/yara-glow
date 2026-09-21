@@ -24,6 +24,20 @@
 .login-error { color: #c0392b; font-weight: 700; font-size: .9rem; }
 .login-back { color: var(--ink-soft); font-size: .92rem; margin-top: 4px; }
 .login-back:hover { color: var(--gold-dark); }
+.remember-row { display: flex; align-items: center; gap: 8px; font-size: .92rem; color: var(--ink-soft); text-align: start; cursor: pointer; }
+.remember-row input { width: auto; accent-color: var(--gold-dark); }
+.login-hint { font-size: .82rem; color: var(--ink-soft); margin-top: 4px; }
+.login-hint b { color: var(--gold-dark); }
+.current-user { font-size: .85rem; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
+
+/* admins management */
+.perms-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-row { background: var(--beige-50); border: 1px solid rgba(201,161,90,.14); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+.admin-row-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.admin-row-head b { font-size: 1.05rem; }
+.admin-role { font-size: .78rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: rgba(108,122,137,.18); color: #4a5763; }
+.admin-role.owner { background: rgba(201,161,90,.2); color: var(--gold-dark); }
+.admin-row-actions { display: flex; gap: 8px; margin-top: 12px; }
 
 /* ---- Header ---- */
 .admin-header {
@@ -265,6 +279,11 @@
 /* ---- Empty ---- */
 .empty-state { text-align: center; padding: 60px 20px; color: var(--ink-soft); }
 .empty-state span { font-size: 3rem; display: block; margin-bottom: 12px; }
+.empty-state .es-icon { color: var(--gold); }
+.empty-state .es-icon svg { width: 54px; height: 54px; }
+.toast-icon svg { width: 26px; height: 26px; }
+.ul-icon { display: inline-flex; vertical-align: -3px; }
+.ul-icon svg { width: 16px; height: 16px; }
 
 @media (max-width: 640px) {
   .booking-card { grid-template-columns: 1fr; }

@@ -55,11 +55,12 @@
       const bg = s.img
         ? `<img class="sc-bg" src="${s.img}" alt="${s.name}" loading="lazy" />`
         : `<div class="sc-bg sc-placeholder">${s.name.charAt(0)}</div>`;
+      const clock = `<svg class="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
       const provLabel = s.desc
         ? s.desc
         : (s.providers.length > 1
-            ? `مع ${s.providers.length} مزوّدات · ⏱ ${s.duration} دقيقة`
-            : `مع ${s.providers[0]} · ⏱ ${s.duration} دقيقة`);
+            ? `مع ${s.providers.length} مزوّدات · ${clock} ${s.duration} دقيقة`
+            : `مع ${s.providers[0]} · ${clock} ${s.duration} دقيقة`);
       const dots = Array.from({ length: 4 }, (_, i) => `<i class="${i === 0 ? "on" : ""}"></i>`).join("");
       return `
       <article class="service-card" data-book="${s.id}" tabindex="0" role="button" aria-label="احجزي ${s.name}">

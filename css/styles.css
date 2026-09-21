@@ -268,7 +268,10 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid rgba(201,161,90,.1); transition: transform .2s, box-shadow .2s;
 }
 a.contact-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
-.ci-icon { font-size: 1.8rem; }
+.ci-icon { font-size: 1.8rem; color: var(--gold-dark); display: inline-flex; }
+.ci-icon svg { width: 30px; height: 30px; }
+/* inline icon in text */
+.i-clock { width: 1em; height: 1em; vertical-align: -2px; display: inline-block; }
 .ci-label { color: var(--ink-soft); font-size: .9rem; }
 .ci-value { font-weight: 700; }
 
