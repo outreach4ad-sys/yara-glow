@@ -278,6 +278,11 @@
         </div>
         <label class="field"><span>مقدّمات الخدمة <em>(افصلي بين الأسماء بفاصلة)</em></span>
           <input type="text" data-f="providers" value="${escapeAttr(s.providers.join("، "))}" placeholder="لينا، رنا، هبة" /></label>
+        <div class="svc-img-row">
+          <label class="field"><span>رابط صورة الخدمة <em>(اتركيه فارغاً لصورة افتراضية)</em></span>
+            <input type="text" data-f="img" value="${escapeAttr(s.img)}" placeholder="assets/service-cut.svg أو https://..." /></label>
+          <div class="svc-img-preview">${s.img ? `<img src="${escapeAttr(s.img)}" alt="معاينة" />` : `<span>${escapeAttr(s.name.charAt(0))}</span>`}</div>
+        </div>
         <div class="svc-row">
           <label class="field"><span>بداية الدوام</span>
             <input type="time" data-f="open" value="${minToTime(s.openMin)}" /></label>
@@ -308,6 +313,15 @@
     $$(".svc-edit", box).forEach((card) => {
       card.querySelector('[data-act="save"]').addEventListener("click", () => saveServiceCard(card));
       card.querySelector('[data-act="delete"]').addEventListener("click", () => deleteService(card.dataset.id));
+      // live image preview
+      const imgInput = card.querySelector('[data-f="img"]');
+      const preview = card.querySelector(".svc-img-preview");
+      imgInput.addEventListener("input", () => {
+        const url = imgInput.value.trim();
+        preview.innerHTML = url
+          ? `<img src="${url.replace(/"/g, "&quot;")}" alt="معاينة" onerror="this.parentNode.innerHTML='⚠'" />`
+          : `<span>${(card.querySelector('[data-f="name"]').value.trim().charAt(0)) || "?"}</span>`;
+      });
     });
   }
 
@@ -320,6 +334,7 @@
     const providers = get("providers").value.split(/[,،\n]/).map((x) => x.trim()).filter(Boolean);
     const openMin = timeToMin(get("open").value);
     const closeMin = timeToMin(get("close").value);
+    const img = get("img").value.trim();
     const days = $$('input[data-day]', card).filter((c) => c.checked).map((c) => Number(c.dataset.day));
 
     // validation
@@ -330,7 +345,7 @@
 
     const list = window.YaraData.getServices();
     const idx = list.findIndex((s) => s.id === id);
-    const updated = { id, name, duration, price, providers, days, openMin, closeMin, img: (idx > -1 ? list[idx].img : "") };
+    const updated = { id, name, duration, price, providers, days, openMin, closeMin, img };
     if (idx > -1) list[idx] = updated; else list.push(updated);
     window.YaraData.saveServices(list);
 

@@ -119,7 +119,12 @@
     resetWizard();
     if (serviceId) {
       const svc = SERVICES.find((s) => s.id === serviceId);
-      if (svc) { selectService(svc); }
+      if (svc) {
+        selectService(svc);
+        // service already chosen from the card → skip step 1 and go straight
+        // to choosing the provider (or the date, when there is only one provider)
+        goToStep(svc.providers.length > 1 ? 2 : 3);
+      }
     }
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
