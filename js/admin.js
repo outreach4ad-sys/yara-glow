@@ -48,8 +48,11 @@
     try { return sessionStorage.getItem(AUTH_KEY) === "1"; } catch (e) { return false; }
   }
   function showDashboard() {
-    $("#loginScreen").hidden = true;
-    $("#adminShell").hidden = false;
+    // Use inline styles so this works even if an old cached admin.css is loaded.
+    const login = $("#loginScreen");
+    const shell = $("#adminShell");
+    login.hidden = true; login.style.display = "none";
+    shell.hidden = false; shell.style.display = "block";
     initDashboard();
   }
   function initAuth() {
