@@ -29,6 +29,15 @@ window.YaraData = (function () {
     try { localStorage.setItem(GALLERY_KEY, JSON.stringify(list)); cloudPush(GALLERY_KEY); return true; } catch (e) { return false; }
   }
 
+  const BRANDS_KEY = "yaraGlowBrands";
+  function getBrands() {
+    try { const g = JSON.parse(localStorage.getItem(BRANDS_KEY)); return Array.isArray(g) ? g : []; }
+    catch (e) { return []; }
+  }
+  function saveBrands(list) {
+    try { localStorage.setItem(BRANDS_KEY, JSON.stringify(list)); cloudPush(BRANDS_KEY); return true; } catch (e) { return false; }
+  }
+
   const DEFAULT_SETTINGS = {
     brandName: "Yara Glow",
     logo: "", // data-URL or path; empty → ✦ mark
@@ -121,6 +130,7 @@ window.YaraData = (function () {
     getSettings, saveSettings, SETTINGS_KEY, DEFAULT_SETTINGS,
     getUsers, saveUsers, USERS_KEY,
     getGallery, saveGallery, GALLERY_KEY,
+    getBrands, saveBrands, BRANDS_KEY,
     cloudPush,
   };
 })();

@@ -11,7 +11,7 @@ window.YaraCloud = (function () {
   const API = "api/kv.php";
 
   // keys mirrored to the database
-  const KEYS = ["yaraGlowServices", "yaraGlowSettings", "yaraGlowGallery", "yaraGlowUsers", "yaraGlowBookingsV2"];
+  const KEYS = ["yaraGlowServices", "yaraGlowSettings", "yaraGlowGallery", "yaraGlowBrands", "yaraGlowUsers", "yaraGlowBookingsV2"];
 
   let online = false;
 

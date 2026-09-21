@@ -546,10 +546,21 @@
     renderGallery();
   }
 
+  function renderBrands() {
+    if (!window.YaraData) return;
+    const list = window.YaraData.getBrands();
+    const section = $("#brands"), track = $("#brandsTrack");
+    if (!track) return;
+    if (!list.length) { section.hidden = true; track.innerHTML = ""; return; }
+    section.hidden = false;
+    track.innerHTML = list.map((src) => `<div class="brand-item"><img src="${src}" alt="شعار" loading="lazy" /></div>`).join("");
+  }
+
   function init() {
     applySettings();
     loadServices();
     renderServices();
+    renderBrands();
     initSlider();
     $("#year").textContent = new Date().getFullYear();
 
@@ -558,6 +569,7 @@
       if (e.key === window.YaraData.SETTINGS_KEY) applySettings();
       if (e.key === window.YaraData.SERVICES_KEY) { loadServices(); renderServices(); }
       if (e.key === window.YaraData.GALLERY_KEY) renderGallery();
+      if (e.key === window.YaraData.BRANDS_KEY) renderBrands();
     });
 
     $$("[data-open-booking]").forEach((b) => b.addEventListener("click", () => openBooking()));
@@ -577,7 +589,7 @@
   }
 
   function cloudSnapshot() {
-    return ["yaraGlowSettings", "yaraGlowServices", "yaraGlowGallery"]
+    return ["yaraGlowSettings", "yaraGlowServices", "yaraGlowGallery", "yaraGlowBrands"]
       .map((k) => localStorage.getItem(k) || "").join("|");
   }
 
@@ -595,7 +607,7 @@
       setInterval(async () => {
         const before = cloudSnapshot();
         await window.YaraCloud.pull();
-        if (cloudSnapshot() !== before) { applySettings(); loadServices(); renderServices(); renderGallery(); }
+        if (cloudSnapshot() !== before) { applySettings(); loadServices(); renderServices(); renderGallery(); renderBrands(); }
       }, 6000);
     }
   }

@@ -329,7 +329,7 @@
     if (view === "bookings") { populateProviderFilter(); render(); }
     if (view === "services") renderServicesAdmin();
     if (view === "settings") renderSettings();
-    if (view === "gallery") renderGalleryAdmin();
+    if (view === "gallery") { renderGalleryAdmin(); renderBrandsAdmin(); }
     if (view === "admins") renderAdminsView();
   }
 
@@ -745,6 +745,39 @@
       });
       function finish() { window.YaraData.saveGallery(list); $("#galleryFile").value = ""; renderGalleryAdmin(); flashGallery(); }
     });
+
+    $("#btnBrandsUpload").addEventListener("click", () => $("#brandsFile").click());
+    $("#brandsFile").addEventListener("change", () => {
+      const files = Array.from($("#brandsFile").files || []);
+      if (!files.length) return;
+      let pending = files.length;
+      const list = window.YaraData.getBrands();
+      files.forEach((file) => {
+        if (file.size > 1.5 * 1024 * 1024) { alert("شعار كبير تجاوز ~1.5MB وتم تخطّيه: " + file.name); if (--pending === 0) finishB(); return; }
+        const reader = new FileReader();
+        reader.onload = () => { list.push(reader.result); if (--pending === 0) finishB(); };
+        reader.onerror = () => { if (--pending === 0) finishB(); };
+        reader.readAsDataURL(file);
+      });
+      function finishB() { window.YaraData.saveBrands(list); $("#brandsFile").value = ""; renderBrandsAdmin(); }
+    });
+  }
+
+  function renderBrandsAdmin() {
+    const box = $("#brandsAdmin");
+    if (!box) return;
+    const list = window.YaraData.getBrands();
+    box.innerHTML = list.length
+      ? list.map((src, i) => `
+        <div class="gal-item" data-i="${i}">
+          <img src="${esc(src)}" alt="شعار ${i + 1}" style="object-fit:contain;background:#fff;" />
+          <div class="gal-actions"><button data-del-brand title="حذف" class="gal-del">✕</button></div>
+        </div>`).join("")
+      : `<p class="hint-small">لا توجد شعارات بعد.</p>`;
+    $$(".gal-item [data-del-brand]", box).forEach((btn, i) => btn.addEventListener("click", () => {
+      const idx = Number(btn.closest(".gal-item").dataset.i);
+      const l = window.YaraData.getBrands(); l.splice(idx, 1); window.YaraData.saveBrands(l); renderBrandsAdmin();
+    }));
   }
 
   function renderGalleryAdmin() {
