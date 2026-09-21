@@ -1,6 +1,9 @@
 /* ===== Yara Glow — Admin Dashboard ===== */
 .admin-body { background: var(--beige-100); }
 
+/* hidden attribute must always win, even over display:grid/flex layouts */
+[hidden] { display: none !important; }
+
 /* ---- Login ---- */
 .login-screen {
   min-height: 100vh; display: grid; place-items: center; padding: 24px;
