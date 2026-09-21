@@ -37,6 +37,7 @@
     const all = getBookings();
     all.push(rec);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(all)); } catch (e) {}
+    if (window.YaraData) window.YaraData.cloudPush(STORAGE_KEY);
   }
   // Busy intervals for a given day + provider (cancelled bookings free the slot).
   function bookedIntervals(dk, provider) {
@@ -572,5 +573,29 @@
     });
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  function cloudSnapshot() {
+    return ["yaraGlowSettings", "yaraGlowServices", "yaraGlowGallery"]
+      .map((k) => localStorage.getItem(k) || "").join("|");
+  }
+
+  async function boot() {
+    // pull shared data from the cloud first so every device shows the same content
+    if (window.YaraCloud) {
+      await window.YaraCloud.bootstrap(function ensureLocal() {
+        window.YaraData.getServices(); window.YaraData.getSettings();
+        window.YaraData.getGallery(); window.YaraData.getUsers();
+      });
+    }
+    init();
+    // keep in sync with edits made on other devices
+    if (window.YaraCloud) {
+      setInterval(async () => {
+        const before = cloudSnapshot();
+        await window.YaraCloud.pull();
+        if (cloudSnapshot() !== before) { applySettings(); loadServices(); renderServices(); renderGallery(); }
+      }, 6000);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
 })();

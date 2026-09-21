@@ -36,7 +36,10 @@
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
     catch (e) { return []; }
   }
-  function saveAll(list) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {} }
+  function saveAll(list) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+    if (window.YaraData) window.YaraData.cloudPush(STORAGE_KEY);
+  }
   function patchBooking(id, patch) {
     const list = getBookings();
     const rec = list.find((b) => b.id === id);
@@ -113,15 +116,62 @@
       location.reload();
     });
 
-    // realtime-ish notifications (same browser: storage events + polling)
+    // notifications + cross-device cloud sync
     initLastNotified();
     window.addEventListener("storage", (e) => {
       if (e.key === STORAGE_KEY) { checkNewBookings(); render(); }
     });
-    setInterval(checkNewBookings, 4000);
     window.addEventListener("focus", checkNewBookings);
 
+    // Save changes / Clear cache / cloud status
+    $("#btnSaveChanges").addEventListener("click", saveChangesToCloud);
+    $("#btnClearCache").addEventListener("click", clearCacheAndReload);
+    updateCloudStatus();
+
+    // poll: pull cloud, detect new bookings from any device, refresh
+    setInterval(cloudPoll, 5000);
+
     render();
+  }
+
+  async function cloudPoll() {
+    if (window.YaraCloud) {
+      const before = localStorage.getItem(STORAGE_KEY) || "";
+      await window.YaraCloud.pull();
+      updateCloudStatus();
+      const after = localStorage.getItem(STORAGE_KEY) || "";
+      checkNewBookings();
+      if (after !== before) { populateProviderFilter(); if (!$("#viewBookings").hidden) render(); }
+    } else {
+      checkNewBookings();
+    }
+  }
+
+  function updateCloudStatus() {
+    const el = $("#cloudStatus");
+    if (!el) return;
+    const on = window.YaraCloud && window.YaraCloud.isOnline();
+    el.textContent = on ? "● متصل" : "● غير متصل";
+    el.style.color = on ? "#2e9e6b" : "#c0392b";
+  }
+
+  async function saveChangesToCloud() {
+    if (!window.YaraCloud) { alert("المزامنة السحابية غير متاحة."); return; }
+    const btn = $("#btnSaveChanges"); const old = btn.textContent;
+    btn.textContent = "جارٍ الحفظ…"; btn.disabled = true;
+    const ok = await window.YaraCloud.pushAll();
+    updateCloudStatus();
+    btn.textContent = ok ? "✓ تم الحفظ" : "تعذّر الحفظ";
+    setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000);
+  }
+
+  async function clearCacheAndReload() {
+    if (!confirm("سيتم حذف النسخة المؤقتة من هذا المتصفح وإعادة تحميل أحدث البيانات من السحابة. متابعة؟")) return;
+    // keep the login session; clear only the data cache keys
+    ["yaraGlowServices","yaraGlowSettings","yaraGlowGallery","yaraGlowUsers","yaraGlowBookingsV2","yaraGlowLastNotified"]
+      .forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} });
+    if (window.YaraCloud) { try { await window.YaraCloud.pull(); } catch (e) {} }
+    location.reload();
   }
 
   function populateProviderFilter() {
@@ -601,11 +651,18 @@
   }
 
   /* ---------- Boot ---------- */
-  document.addEventListener("DOMContentLoaded", () => {
+  async function boot() {
+    if (window.YaraCloud) {
+      await window.YaraCloud.bootstrap(function ensureLocal() {
+        window.YaraData.getServices(); window.YaraData.getSettings();
+        window.YaraData.getGallery(); window.YaraData.getUsers();
+      });
+    }
     initAuth();
     if ("Notification" in window && Notification.permission === "default") {
       // request after first interaction to avoid blocking
       document.addEventListener("click", function once() { try { Notification.requestPermission(); } catch (e) {} document.removeEventListener("click", once); }, { once: true });
     }
-  });
+  }
+  document.addEventListener("DOMContentLoaded", boot);
 })();

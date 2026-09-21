@@ -26,7 +26,7 @@ window.YaraData = (function () {
     return g;
   }
   function saveGallery(list) {
-    try { localStorage.setItem(GALLERY_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+    try { localStorage.setItem(GALLERY_KEY, JSON.stringify(list)); cloudPush(GALLERY_KEY); return true; } catch (e) { return false; }
   }
 
   const DEFAULT_SETTINGS = {
@@ -55,7 +55,7 @@ window.YaraData = (function () {
     });
   }
   function saveSettings(s) {
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); return true; } catch (e) { return false; }
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); cloudPush(SETTINGS_KEY); return true; } catch (e) { return false; }
   }
 
   function getUsers() {
@@ -63,7 +63,7 @@ window.YaraData = (function () {
     catch (e) { return []; }
   }
   function saveUsers(list) {
-    try { localStorage.setItem(USERS_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+    try { localStorage.setItem(USERS_KEY, JSON.stringify(list)); cloudPush(USERS_KEY); return true; } catch (e) { return false; }
   }
 
   // days: allowed weekdays (0=الأحد .. 6=السبت)
@@ -76,6 +76,9 @@ window.YaraData = (function () {
   ];
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  // push a key to the cloud after saving locally (no-op if cloud layer absent)
+  function cloudPush(key) { if (window.YaraCloud) { try { window.YaraCloud.push(key); } catch (e) {} } }
 
   function getServices() {
     let list;
@@ -100,7 +103,7 @@ window.YaraData = (function () {
   }
 
   function saveServices(list) {
-    try { localStorage.setItem(SERVICES_KEY, JSON.stringify(list)); return true; }
+    try { localStorage.setItem(SERVICES_KEY, JSON.stringify(list)); cloudPush(SERVICES_KEY); return true; }
     catch (e) { return false; }
   }
 
@@ -117,5 +120,6 @@ window.YaraData = (function () {
     getSettings, saveSettings, SETTINGS_KEY, DEFAULT_SETTINGS,
     getUsers, saveUsers, USERS_KEY,
     getGallery, saveGallery, GALLERY_KEY,
+    cloudPush,
   };
 })();
