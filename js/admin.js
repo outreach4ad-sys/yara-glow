@@ -168,7 +168,7 @@
     dashboardReady = true;
     migrateLegacy();
     populateProviderFilter();
-    injectArchiveToggle();
+    initBookingsToolbar();
 
     $$(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
     initServicesView();
@@ -255,18 +255,63 @@
     sel.value = current;
   }
 
-  function injectArchiveToggle() {
-    const btn = document.createElement("button");
-    btn.className = "btn btn-ghost filter-clear";
-    btn.id = "btnArchiveToggle";
-    btn.textContent = "عرض الأرشيف";
-    btn.addEventListener("click", () => {
+  function initBookingsToolbar() {
+    const arch = $("#btnArchiveToggle2");
+    arch.addEventListener("click", () => {
       showArchived = !showArchived;
-      btn.textContent = showArchived ? "إخفاء الأرشيف" : "عرض الأرشيف";
-      btn.classList.toggle("active", showArchived);
+      arch.textContent = showArchived ? "إخفاء الأرشيف" : "عرض الأرشيف";
+      arch.classList.toggle("active", showArchived);
       render();
     });
-    $(".filters").appendChild(btn);
+    $("#btnRevenue").addEventListener("click", openRevenue);
+    $$("[data-close-revenue]").forEach((el) => el.addEventListener("click", () => {
+      $("#revenueModal").classList.remove("is-open"); $("#revenueModal").setAttribute("aria-hidden", "true");
+    }));
+  }
+
+  /* ---------- Revenue report ---------- */
+  const money = (n) => "₪ " + Number(n || 0).toLocaleString("en");
+  function keyOf(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+  function computeRevenue() {
+    const all = getBookings();
+    const tk = todayKey();
+    const month = tk.slice(0, 7);
+    const wa = new Date(); wa.setDate(wa.getDate() - 6); const weekAgo = keyOf(wa);
+    let today = 0, week = 0, monthSum = 0, total = 0, expected = 0, completed = 0, confirmed = 0;
+    const byService = {};
+    all.forEach((b) => {
+      if (b.status === "completed") {
+        total += b.price; completed++;
+        if (b.dateKey === tk) today += b.price;
+        if (b.dateKey >= weekAgo && b.dateKey <= tk) week += b.price;
+        if (b.dateKey.slice(0, 7) === month) monthSum += b.price;
+        byService[b.serviceName] = (byService[b.serviceName] || 0) + b.price;
+      } else if (b.status === "confirmed") { expected += b.price; confirmed++; }
+    });
+    return { today, week, monthSum, total, expected, completed, confirmed, byService };
+  }
+
+  function openRevenue() {
+    const r = computeRevenue();
+    const services = Object.entries(r.byService).sort((a, b) => b[1] - a[1]);
+    const rows = services.length
+      ? services.map(([n, v]) => `<div class="row"><span>${esc(n)}</span><b>${money(v)}</b></div>`).join("")
+      : `<div class="row"><span>لا توجد إيرادات محقّقة بعد</span><b>—</b></div>`;
+    $("#revenueBody").innerHTML = `
+      <div class="rev-grid">
+        <div class="rev-card today"><div class="rev-value">${money(r.today)}</div><div class="rev-label">إيرادات اليوم</div></div>
+        <div class="rev-card"><div class="rev-value">${money(r.week)}</div><div class="rev-label">آخر 7 أيام</div></div>
+        <div class="rev-card"><div class="rev-value">${money(r.monthSum)}</div><div class="rev-label">هذا الشهر</div></div>
+        <div class="rev-card total"><div class="rev-value">${money(r.total)}</div><div class="rev-label">الإجمالي المحقّق</div></div>
+        <div class="rev-card expected"><div class="rev-value">${money(r.expected)}</div><div class="rev-label">متوقّع (مؤكدة)</div></div>
+        <div class="rev-card"><div class="rev-value">${r.completed}</div><div class="rev-label">حجوزات مكتملة</div></div>
+      </div>
+      <p class="rev-note">الإيرادات المحقّقة تُحتسب من الحجوزات ذات الحالة «مكتمل». المتوقّع من الحجوزات «المؤكدة».</p>
+      <h4 class="rev-subhead">الإيرادات حسب الخدمة</h4>
+      <div class="summary">${rows}</div>`;
+    $("#revenueModal").classList.add("is-open");
+    $("#revenueModal").setAttribute("aria-hidden", "false");
   }
 
   /* ---------- View switching ---------- */
