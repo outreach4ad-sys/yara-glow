@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="380" viewBox="0 0 600 380">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9c4c4"/>
+      <stop offset="1" stop-color="#c9a15a"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="380" fill="url(#bg)"/>
+  <circle cx="500" cy="70" r="70" fill="#ffffff" fill-opacity="0.22"/>
+  <circle cx="90" cy="320" r="90" fill="#ffffff" fill-opacity="0.16"/>
+  <text x="300" y="205" font-family="serif" font-size="120" text-anchor="middle" fill="#ffffff" fill-opacity="0.92">✂</text>
+  <text x="300" y="300" font-family="Tajawal, sans-serif" font-size="34" font-weight="700" text-anchor="middle" fill="#ffffff">قص وتصفيف</text>
+</svg>
