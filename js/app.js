@@ -54,9 +54,11 @@
       const bg = s.img
         ? `<img class="sc-bg" src="${s.img}" alt="${s.name}" loading="lazy" />`
         : `<div class="sc-bg sc-placeholder">${s.name.charAt(0)}</div>`;
-      const provLabel = s.providers.length > 1
-        ? `مع ${s.providers.length} مزوّدات · ⏱ ${s.duration} دقيقة`
-        : `مع ${s.providers[0]} · ⏱ ${s.duration} دقيقة`;
+      const provLabel = s.desc
+        ? s.desc
+        : (s.providers.length > 1
+            ? `مع ${s.providers.length} مزوّدات · ⏱ ${s.duration} دقيقة`
+            : `مع ${s.providers[0]} · ⏱ ${s.duration} دقيقة`);
       const dots = Array.from({ length: 4 }, (_, i) => `<i class="${i === 0 ? "on" : ""}"></i>`).join("");
       return `
       <article class="service-card" data-book="${s.id}" tabindex="0" role="button" aria-label="احجزي ${s.name}">
@@ -406,6 +408,8 @@
       phone: phone,
       notes: notes,
       status: "new",
+      seen: false,
+      archived: false,
       createdAt: new Date().toISOString(),
     });
 
@@ -427,10 +431,59 @@
   }
 
   /* ---------- Wire up ---------- */
+  /* ---------- Site settings (editable from dashboard) ---------- */
+  function applySettings() {
+    if (!window.YaraData) return;
+    const s = window.YaraData.getSettings();
+
+    // colors → CSS variables
+    const root = document.documentElement;
+    root.style.setProperty("--gold", s.colors.gold);
+    root.style.setProperty("--gold-dark", s.colors.goldDark);
+    root.style.setProperty("--rose", s.colors.rose);
+    root.style.setProperty("--beige", s.colors.beige);
+    root.style.setProperty("--ink", s.colors.ink);
+
+    // texts
+    const setText = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.textContent = val; };
+    setText("s-heroEyebrow", s.heroEyebrow);
+    setText("s-heroTitle", s.heroTitle);
+    setText("s-heroSub", s.heroSub);
+    setText("s-servicesTitle", s.servicesTitle);
+    setText("s-servicesDesc", s.servicesDesc);
+    setText("s-aboutTitle", s.aboutTitle);
+    setText("s-aboutText", s.aboutText);
+    setText("s-contactPhone", s.contactPhone);
+    setText("s-contactAddress", s.contactAddress);
+
+    const phoneLink = $("#s-phoneLink"); if (phoneLink) phoneLink.href = "tel:" + (s.contactPhone || "").replace(/\s/g, "");
+    const waLink = $("#s-whatsappLink"); if (waLink) waLink.href = "https://wa.me/" + (s.contactWhatsapp || "").replace(/[^\d]/g, "");
+
+    // brand name + logo (all occurrences)
+    document.title = s.brandName + " | مركز تجميل فاخر";
+    $$(".brand-name").forEach((el) => { el.textContent = s.brandName; });
+    $$(".brand").forEach((brand) => {
+      const mark = brand.querySelector(".brand-mark");
+      if (!mark) return;
+      if (s.logo) {
+        mark.innerHTML = `<img src="${s.logo}" alt="${s.brandName}" style="height:1.4em;width:auto;border-radius:6px;vertical-align:middle;" />`;
+      } else {
+        mark.textContent = "✦";
+      }
+    });
+  }
+
   function init() {
+    applySettings();
     loadServices();
     renderServices();
     $("#year").textContent = new Date().getFullYear();
+
+    // live update when settings/services change in another tab
+    window.addEventListener("storage", (e) => {
+      if (e.key === window.YaraData.SETTINGS_KEY) applySettings();
+      if (e.key === window.YaraData.SERVICES_KEY) { loadServices(); renderServices(); }
+    });
 
     $$("[data-open-booking]").forEach((b) => b.addEventListener("click", () => openBooking()));
     $$("[data-close-booking]").forEach((b) => b.addEventListener("click", closeBooking));

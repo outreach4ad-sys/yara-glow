@@ -4,10 +4,11 @@
 
   /* ---------- Config ---------- */
   // ⚠️ كلمة مرور بسيطة للحماية من طرف العميل. غيّريها قبل النشر.
-  //    (لحماية حقيقية استخدمي حماية على مستوى الخادم أو .htpasswd في Hostinger)
   const ADMIN_PASSWORD = "yara2026";
   const AUTH_KEY = "yaraGlowAdminAuth";
   const STORAGE_KEY = "yaraGlowBookingsV2";
+  const OLD_KEY = "yaraGlowBookings";
+  const NOTIFIED_KEY = "yaraGlowLastNotified";
 
   const STATUSES = [
     { id: "new",       label: "جديد" },
@@ -25,19 +26,28 @@
   const pad = (n) => String(n).padStart(2, "0");
   const minToLabel = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
   const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const esc = (str) => String(str == null ? "" : str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 
   function parseKey(dk) { const [y, m, d] = dk.split("-").map(Number); return new Date(y, m - 1, d); }
   function formatDateAr(dk) { const d = parseKey(dk); return `${AR_DOW[d.getDay()]} ${d.getDate()} ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
 
-  /* ---------- Data (LocalStorage as DB) ---------- */
-  const OLD_KEY = "yaraGlowBookings"; // legacy format: { "dateKey_provider": [[start,end],...] }
+  /* ---------- Bookings data (LocalStorage) ---------- */
+  function getBookings() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveAll(list) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {} }
+  function patchBooking(id, patch) {
+    const list = getBookings();
+    const rec = list.find((b) => b.id === id);
+    if (rec) { Object.assign(rec, patch, { updatedAt: new Date().toISOString() }); saveAll(list); }
+    return rec;
+  }
 
-  // One-time migration of any bookings saved by an older cached app.js.
   function migrateLegacy() {
     let legacy;
     try { legacy = JSON.parse(localStorage.getItem(OLD_KEY)); } catch (e) { return; }
     if (!legacy || typeof legacy !== "object" || Array.isArray(legacy)) return;
-
     const current = getBookings();
     let added = 0;
     Object.keys(legacy).forEach((key) => {
@@ -45,79 +55,51 @@
       const dk = idx > -1 ? key.slice(0, idx) : key;
       const provider = idx > -1 ? key.slice(idx + 1) : "—";
       (legacy[key] || []).forEach(([start, end]) => {
-        current.push({
-          id: "legacy_" + dk + "_" + start,
-          serviceId: "", serviceName: "حجز (نسخة سابقة)", provider: provider,
-          dateKey: dk, start: start, end: end, duration: end - start, price: 0,
-          name: "—", phone: "", status: "new", createdAt: new Date().toISOString(),
-        });
+        current.push({ id: "legacy_" + dk + "_" + start, serviceId: "", serviceName: "حجز (نسخة سابقة)",
+          provider, dateKey: dk, start, end, duration: end - start, price: 0,
+          name: "—", phone: "", status: "new", seen: true, archived: false, createdAt: new Date().toISOString() });
         added++;
       });
     });
-    if (added) {
-      saveAll(current);
-      try { localStorage.removeItem(OLD_KEY); } catch (e) {}
-    }
-  }
-
-  function getBookings() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    catch (e) { return []; }
-  }
-  function saveAll(list) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
-  }
-  function setStatus(id, status) {
-    const list = getBookings();
-    const rec = list.find((b) => b.id === id);
-    if (rec) { rec.status = status; rec.updatedAt = new Date().toISOString(); saveAll(list); }
+    if (added) { saveAll(current); try { localStorage.removeItem(OLD_KEY); } catch (e) {} }
   }
 
   /* ---------- Auth ---------- */
-  function isAuthed() {
-    try { return sessionStorage.getItem(AUTH_KEY) === "1"; } catch (e) { return false; }
-  }
+  function isAuthed() { try { return sessionStorage.getItem(AUTH_KEY) === "1"; } catch (e) { return false; } }
   function showDashboard() {
-    // Use inline styles so this works even if an old cached admin.css is loaded.
-    const login = $("#loginScreen");
-    const shell = $("#adminShell");
+    const login = $("#loginScreen"), shell = $("#adminShell");
     login.hidden = true; login.style.display = "none";
     shell.hidden = false; shell.style.display = "block";
     initDashboard();
   }
   function initAuth() {
     if (isAuthed()) { showDashboard(); return; }
-
     $("#loginForm").addEventListener("submit", (e) => {
       e.preventDefault();
-      const val = $("#loginPass").value;
-      if (val === ADMIN_PASSWORD) {
+      if ($("#loginPass").value === ADMIN_PASSWORD) {
         try { sessionStorage.setItem(AUTH_KEY, "1"); } catch (err) {}
-        $("#loginError").hidden = true;
-        showDashboard();
+        $("#loginError").hidden = true; showDashboard();
       } else {
-        $("#loginError").hidden = false;
-        $("#loginPass").value = "";
-        $("#loginPass").focus();
+        $("#loginError").hidden = false; $("#loginPass").value = ""; $("#loginPass").focus();
       }
     });
   }
 
-  /* ---------- Dashboard ---------- */
+  /* ---------- Dashboard init ---------- */
   let dashboardReady = false;
+  let showArchived = false;
 
   function initDashboard() {
     if (dashboardReady) { render(); return; }
     dashboardReady = true;
     migrateLegacy();
-
     populateProviderFilter();
+    injectArchiveToggle();
 
-    // tab switching
-    $$(".tab").forEach((t) =>
-      t.addEventListener("click", () => switchView(t.dataset.view))
-    );
+    $$(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
     initServicesView();
+    initSettingsView();
+    initBookingModal();
 
     $("#fDay").addEventListener("change", render);
     $("#fProvider").addEventListener("change", render);
@@ -130,105 +112,38 @@
       location.reload();
     });
 
+    // realtime-ish notifications (same browser: storage events + polling)
+    initLastNotified();
+    window.addEventListener("storage", (e) => {
+      if (e.key === STORAGE_KEY) { checkNewBookings(); render(); }
+    });
+    setInterval(checkNewBookings, 4000);
+    window.addEventListener("focus", checkNewBookings);
+
     render();
   }
 
-  function applyFilters(list) {
-    const day = $("#fDay").value;             // yyyy-mm-dd or ""
-    const prov = $("#fProvider").value;
-    const st = $("#fStatus").value;
-    return list.filter((b) =>
-      (!day || b.dateKey === day) &&
-      (!prov || b.provider === prov) &&
-      (!st || b.status === st)
-    );
-  }
-
-  // sort by nearest appointment first (upcoming ascending), past ones after
-  function sortByNearest(list) {
-    const now = Date.now();
-    const ts = (b) => parseKey(b.dateKey).getTime() + b.start * 60000;
-    return list.slice().sort((a, b) => {
-      const ta = ts(a), tb = ts(b);
-      const aPast = ta < now, bPast = tb < now;
-      if (aPast !== bPast) return aPast ? 1 : -1;   // upcoming before past
-      return aPast ? tb - ta : ta - tb;             // upcoming asc, past desc
-    });
-  }
-
-  function renderStats() {
-    const all = getBookings();
-    const tk = todayKey();
-    const todayCount = all.filter((b) => b.dateKey === tk && b.status !== "cancelled").length;
-    const active = all.filter((b) => b.status !== "cancelled");
-    const upcoming = active.filter((b) => parseKey(b.dateKey).getTime() + b.start * 60000 >= Date.now()).length;
-    const byStatus = (s) => all.filter((b) => b.status === s).length;
-
-    $("#statsRow").innerHTML = `
-      <div class="stat-card today"><div class="stat-value">${todayCount}</div><div class="stat-label">مواعيد اليوم</div></div>
-      <div class="stat-card"><div class="stat-value">${upcoming}</div><div class="stat-label">مواعيد قادمة</div></div>
-      <div class="stat-card confirmed"><div class="stat-value">${byStatus("confirmed")}</div><div class="stat-label">مؤكدة</div></div>
-      <div class="stat-card completed"><div class="stat-value">${byStatus("completed")}</div><div class="stat-label">مكتملة</div></div>
-      <div class="stat-card cancelled"><div class="stat-value">${byStatus("cancelled")}</div><div class="stat-label">ملغاة</div></div>
-    `;
-  }
-
-  function bookingCardHTML(b) {
-    const actions = STATUSES.map((s) =>
-      `<button class="status-btn ${b.status === s.id ? "active" : ""}" data-id="${b.id}" data-status="${s.id}">${s.label}</button>`
-    ).join("");
-    const phone = b.phone ? ` · <span>📞 ${b.phone}</span>` : "";
-    return `
-      <article class="booking-card st-${b.status}">
-        <div class="bk-main">
-          <div class="bk-top">
-            <span class="bk-time">${minToLabel(b.start)} — ${minToLabel(b.end)}</span>
-            <span class="bk-date">${formatDateAr(b.dateKey)}</span>
-            <span class="badge-status st-${b.status}">${statusLabel(b.status)}</span>
-          </div>
-          <div class="bk-service">${b.serviceName}</div>
-          <div class="bk-meta">
-            <span>العميلة: <b>${b.name || "—"}</b></span>
-            <span>المزوّدة: <b>${b.provider}</b></span>
-            <span>المدة: <b>${b.duration} دقيقة</b></span>
-            <span>السعر: <b>₪ ${b.price}</b></span>${phone}
-          </div>
-        </div>
-        <div class="bk-actions">${actions}</div>
-      </article>`;
-  }
-
-  function render() {
-    renderStats();
-    const list = sortByNearest(applyFilters(getBookings()));
-    const box = $("#bookingsList");
-    const empty = $("#emptyState");
-
-    if (!list.length) {
-      box.innerHTML = "";
-      empty.hidden = false;
-      return;
-    }
-    empty.hidden = true;
-    box.innerHTML = list.map(bookingCardHTML).join("");
-
-    $$(".status-btn", box).forEach((btn) =>
-      btn.addEventListener("click", () => {
-        setStatus(btn.dataset.id, btn.dataset.status);
-        render();
-      })
-    );
-  }
-
   function populateProviderFilter() {
-    const sel = $("#fProvider");
-    const current = sel.value;
+    const sel = $("#fProvider"); const current = sel.value;
     const fromServices = (window.YaraData ? window.YaraData.getServices() : []).flatMap((s) => s.providers);
     const fromBookings = getBookings().map((b) => b.provider);
     const providers = Array.from(new Set([...fromServices, ...fromBookings].filter(Boolean))).sort();
-    sel.innerHTML = `<option value="">الكل</option>` +
-      providers.map((p) => `<option value="${p}">${p}</option>`).join("");
+    sel.innerHTML = `<option value="">الكل</option>` + providers.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join("");
     sel.value = current;
+  }
+
+  function injectArchiveToggle() {
+    const btn = document.createElement("button");
+    btn.className = "btn btn-ghost filter-clear";
+    btn.id = "btnArchiveToggle";
+    btn.textContent = "عرض الأرشيف";
+    btn.addEventListener("click", () => {
+      showArchived = !showArchived;
+      btn.textContent = showArchived ? "إخفاء الأرشيف" : "عرض الأرشيف";
+      btn.classList.toggle("active", showArchived);
+      render();
+    });
+    $(".filters").appendChild(btn);
   }
 
   /* ---------- View switching ---------- */
@@ -236,8 +151,194 @@
     $$(".tab").forEach((t) => t.classList.toggle("is-active", t.dataset.view === view));
     $("#viewBookings").hidden = view !== "bookings";
     $("#viewServices").hidden = view !== "services";
+    $("#viewSettings").hidden = view !== "settings";
     if (view === "bookings") { populateProviderFilter(); render(); }
     if (view === "services") renderServicesAdmin();
+    if (view === "settings") renderSettings();
+  }
+
+  /* ---------- Bookings rendering ---------- */
+  function applyFilters(list) {
+    const day = $("#fDay").value, prov = $("#fProvider").value, st = $("#fStatus").value;
+    return list.filter((b) =>
+      (showArchived ? b.archived : !b.archived) &&
+      (!day || b.dateKey === day) &&
+      (!prov || b.provider === prov) &&
+      (!st || b.status === st)
+    );
+  }
+  // newest-created first
+  function sortNewest(list) {
+    return list.slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  }
+
+  function renderStats() {
+    const all = getBookings().filter((b) => !b.archived);
+    const tk = todayKey();
+    const todayCount = all.filter((b) => b.dateKey === tk && b.status !== "cancelled").length;
+    const unseen = all.filter((b) => !b.seen && b.status !== "cancelled").length;
+    const byStatus = (s) => all.filter((b) => b.status === s).length;
+    $("#statsRow").innerHTML = `
+      <div class="stat-card today"><div class="stat-value">${todayCount}</div><div class="stat-label">مواعيد اليوم</div></div>
+      <div class="stat-card new-badge"><div class="stat-value">${unseen}</div><div class="stat-label">حجوزات جديدة</div></div>
+      <div class="stat-card confirmed"><div class="stat-value">${byStatus("confirmed")}</div><div class="stat-label">مؤكدة</div></div>
+      <div class="stat-card completed"><div class="stat-value">${byStatus("completed")}</div><div class="stat-label">مكتملة</div></div>
+      <div class="stat-card cancelled"><div class="stat-value">${byStatus("cancelled")}</div><div class="stat-label">ملغاة</div></div>`;
+  }
+
+  function bookingRowHTML(b) {
+    const isNew = !b.seen && !b.archived;
+    return `
+      <article class="booking-card st-${b.status} ${isNew ? "is-unseen" : ""}" data-open="${b.id}" tabindex="0" role="button">
+        ${isNew ? `<span class="new-flag">جديد</span>` : ""}
+        <div class="bk-main">
+          <div class="bk-top">
+            <span class="bk-time">${minToLabel(b.start)} — ${minToLabel(b.end)}</span>
+            <span class="bk-date">${formatDateAr(b.dateKey)}</span>
+            <span class="badge-status st-${b.status}">${statusLabel(b.status)}</span>
+          </div>
+          <div class="bk-service">${esc(b.serviceName)}</div>
+          <div class="bk-meta">
+            <span>العميلة: <b>${esc(b.name) || "—"}</b></span>
+            <span>المزوّدة: <b>${esc(b.provider)}</b></span>
+            <span>₪ ${b.price}</span>
+          </div>
+        </div>
+        <div class="bk-chevron">‹</div>
+      </article>`;
+  }
+
+  function render() {
+    renderStats();
+    const list = sortNewest(applyFilters(getBookings()));
+    const box = $("#bookingsList"), empty = $("#emptyState");
+    if (!list.length) { box.innerHTML = ""; empty.hidden = false; return; }
+    empty.hidden = true;
+    box.innerHTML = list.map(bookingRowHTML).join("");
+    $$("[data-open]", box).forEach((card) => {
+      card.addEventListener("click", () => openBookingModal(card.dataset.open));
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter") openBookingModal(card.dataset.open); });
+    });
+  }
+
+  /* ---------- Booking details popup ---------- */
+  let currentBookingId = null;
+  function initBookingModal() {
+    $$("[data-close-modal]").forEach((el) => el.addEventListener("click", closeBookingModal));
+    $("#bkArchive").addEventListener("click", () => {
+      if (!currentBookingId) return;
+      patchBooking(currentBookingId, { archived: true });
+      closeBookingModal(); render();
+    });
+    $("#bkDelete").addEventListener("click", () => {
+      if (!currentBookingId) return;
+      if (!confirm("هل تريدين حذف هذا الحجز نهائياً؟")) return;
+      saveAll(getBookings().filter((b) => b.id !== currentBookingId));
+      closeBookingModal(); render();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && $("#bookingModal").classList.contains("is-open")) closeBookingModal();
+    });
+  }
+
+  function openBookingModal(id) {
+    const b = getBookings().find((x) => x.id === id);
+    if (!b) return;
+    currentBookingId = id;
+    // opening clears the "new" flag
+    if (!b.seen) patchBooking(id, { seen: true });
+
+    $("#bkDetails").innerHTML = `
+      <div class="summary">
+        <div class="row"><span>العميلة</span><b>${esc(b.name) || "—"}</b></div>
+        <div class="row"><span>الهاتف</span><b>${esc(b.phone) || "—"}</b></div>
+        <div class="row"><span>الخدمة</span><b>${esc(b.serviceName)}</b></div>
+        <div class="row"><span>المزوّدة</span><b>${esc(b.provider)}</b></div>
+        <div class="row"><span>التاريخ</span><b>${formatDateAr(b.dateKey)}</b></div>
+        <div class="row"><span>الوقت</span><b>${minToLabel(b.start)} — ${minToLabel(b.end)}</b></div>
+        <div class="row"><span>المدة</span><b>${b.duration} دقيقة</b></div>
+        <div class="row"><span>السعر</span><b>₪ ${b.price}</b></div>
+        ${b.notes ? `<div class="row"><span>ملاحظات</span><b>${esc(b.notes)}</b></div>` : ""}
+        <div class="row"><span>وقت الحجز</span><b>${new Date(b.createdAt).toLocaleString("ar")}</b></div>
+      </div>`;
+    $("#bkArchive").textContent = b.archived ? "إلغاء الأرشفة" : "أرشفة";
+    renderStatusButtons(b.status);
+    $("#bookingModal").classList.add("is-open");
+    $("#bookingModal").setAttribute("aria-hidden", "false");
+    render(); // refresh list (flag removed)
+  }
+
+  function renderStatusButtons(active) {
+    $("#bkStatusBtns").innerHTML = STATUSES.map((s) =>
+      `<button class="status-btn ${s.id === active ? "active" : ""}" data-status="${s.id}">${s.label}</button>`
+    ).join("");
+    $$("#bkStatusBtns .status-btn").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        patchBooking(currentBookingId, { status: btn.dataset.status });
+        renderStatusButtons(btn.dataset.status);
+        render();
+      })
+    );
+  }
+
+  function closeBookingModal() {
+    $("#bookingModal").classList.remove("is-open");
+    $("#bookingModal").setAttribute("aria-hidden", "true");
+    currentBookingId = null;
+  }
+
+  /* ---------- Notifications + sound ---------- */
+  let lastNotified = "";
+  function initLastNotified() {
+    try { lastNotified = localStorage.getItem(NOTIFIED_KEY) || ""; } catch (e) {}
+    // baseline: if nothing stored, set to the newest existing so we don't alert on load
+    if (!lastNotified) {
+      const newest = getBookings().reduce((m, b) => (b.createdAt > m ? b.createdAt : m), "");
+      lastNotified = newest;
+      try { localStorage.setItem(NOTIFIED_KEY, lastNotified); } catch (e) {}
+    }
+  }
+  function checkNewBookings() {
+    const fresh = getBookings()
+      .filter((b) => !b.archived && (b.createdAt || "") > lastNotified)
+      .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    if (!fresh.length) return;
+    fresh.forEach((b) => showToast(b));
+    playSound();
+    lastNotified = fresh[fresh.length - 1].createdAt;
+    try { localStorage.setItem(NOTIFIED_KEY, lastNotified); } catch (e) {}
+    if (!$("#viewBookings").hidden) render();
+    // browser notification (if permitted)
+    if ("Notification" in window && Notification.permission === "granted") {
+      const b = fresh[fresh.length - 1];
+      try { new Notification("حجز جديد — Yara Glow", { body: `${b.name} · ${b.serviceName} · ${formatDateAr(b.dateKey)} ${minToLabel(b.start)}` }); } catch (e) {}
+    }
+  }
+  function playSound() {
+    const a = $("#notifySound");
+    if (a) { try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} }
+  }
+  function showToast(b) {
+    const wrap = $("#toastWrap");
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.innerHTML = `
+      <span class="toast-icon">🔔</span>
+      <div class="toast-body">
+        <b>حجز جديد!</b>
+        <small>${esc(b.name)} · ${esc(b.serviceName)}</small>
+        <small>${formatDateAr(b.dateKey)} — ${minToLabel(b.start)}</small>
+      </div>
+      <button class="toast-close" aria-label="إغلاق">✕</button>`;
+    t.querySelector(".toast-close").addEventListener("click", () => t.remove());
+    t.addEventListener("click", (e) => {
+      if (e.target.closest(".toast-close")) return;
+      switchView("bookings"); $$(".tab").forEach((x)=>x.classList.toggle("is-active", x.dataset.view==="bookings"));
+      openBookingModal(b.id); t.remove();
+    });
+    wrap.appendChild(t);
+    setTimeout(() => t.classList.add("show"), 20);
+    setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 300); }, 8000);
   }
 
   /* ---------- Services management ---------- */
@@ -254,90 +355,110 @@
       list.push(window.YaraData.newService());
       window.YaraData.saveServices(list);
       renderServicesAdmin();
-      // scroll to the newly added card
       const cards = $$(".svc-edit");
       if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: "smooth", block: "center" });
     });
   }
 
+  function chipHTML(name) {
+    return `<span class="chip" data-provider="${esc(name)}">${esc(name)}<button type="button" data-remove aria-label="حذف">✕</button></span>`;
+  }
+
   function serviceCardHTML(s) {
     const daysHTML = DAYS.map((d) => `
-      <label class="day-check">
-        <input type="checkbox" data-day="${d.n}" ${s.days.includes(d.n) ? "checked" : ""} />
-        <span>${d.label}</span>
-      </label>`).join("");
+      <label class="day-check"><input type="checkbox" data-day="${d.n}" ${s.days.includes(d.n) ? "checked" : ""} /><span>${d.label}</span></label>`).join("");
     return `
       <div class="svc-edit" data-id="${s.id}">
         <div class="svc-row">
-          <label class="field"><span>اسم الخدمة</span>
-            <input type="text" data-f="name" value="${escapeAttr(s.name)}" /></label>
-          <label class="field"><span>المدة (دقيقة)</span>
-            <input type="number" min="5" step="5" data-f="duration" value="${s.duration}" /></label>
-          <label class="field"><span>السعر (₪)</span>
-            <input type="number" min="0" step="5" data-f="price" value="${s.price}" /></label>
+          <label class="field"><span>اسم الخدمة</span><input type="text" data-f="name" value="${esc(s.name)}" /></label>
+          <label class="field"><span>المدة (دقيقة)</span><input type="number" min="5" step="5" data-f="duration" value="${s.duration}" /></label>
+          <label class="field"><span>السعر (₪)</span><input type="number" min="0" step="5" data-f="price" value="${s.price}" /></label>
         </div>
-        <label class="field"><span>مقدّمات الخدمة <em>(افصلي بين الأسماء بفاصلة)</em></span>
-          <input type="text" data-f="providers" value="${escapeAttr(s.providers.join("، "))}" placeholder="لينا، رنا، هبة" /></label>
+        <label class="field"><span>وصف قصير</span>
+          <input type="text" data-f="desc" value="${esc(s.desc || "")}" placeholder="جملة قصيرة تظهر على البطاقة" /></label>
+        <div class="field"><span>مقدّمات الخدمة</span>
+          <div class="chips" data-chips>${s.providers.map(chipHTML).join("")}</div>
+          <div class="chip-add">
+            <input type="text" data-chip-input placeholder="اسم المقدّمة ثم اضغطي إضافة" />
+            <button class="btn btn-ghost" data-act="addchip">+ إضافة</button>
+          </div>
+        </div>
         <div class="svc-img-row">
-          <label class="field"><span>رابط صورة الخدمة <em>(اتركيه فارغاً لصورة افتراضية)</em></span>
-            <input type="text" data-f="img" value="${escapeAttr(s.img)}" placeholder="assets/service-cut.svg أو https://..." /></label>
-          <div class="svc-img-preview">${s.img ? `<img src="${escapeAttr(s.img)}" alt="معاينة" />` : `<span>${escapeAttr(s.name.charAt(0))}</span>`}</div>
+          <label class="field"><span>صورة الخدمة</span>
+            <input type="text" data-f="img" value="${esc(s.img)}" placeholder="رابط أو ارفعي صورة" /></label>
+          <div class="svc-img-preview">${s.img ? `<img src="${esc(s.img)}" alt="" onerror="this.parentNode.innerHTML='⚠'" />` : `<span>${esc(s.name.charAt(0))}</span>`}</div>
+          <div class="svc-img-upload"><input type="file" accept="image/*" data-imgfile hidden /><button class="btn btn-ghost" data-act="upload">رفع صورة</button></div>
         </div>
         <div class="svc-row">
-          <label class="field"><span>بداية الدوام</span>
-            <input type="time" data-f="open" value="${minToTime(s.openMin)}" /></label>
-          <label class="field"><span>نهاية الدوام</span>
-            <input type="time" data-f="close" value="${minToTime(s.closeMin)}" /></label>
+          <label class="field"><span>بداية الدوام</span><input type="time" data-f="open" value="${minToTime(s.openMin)}" /></label>
+          <label class="field"><span>نهاية الدوام</span><input type="time" data-f="close" value="${minToTime(s.closeMin)}" /></label>
         </div>
-        <div class="field"><span>أيام العمل</span>
-          <div class="days-grid">${daysHTML}</div>
-        </div>
+        <div class="field"><span>أيام العمل</span><div class="days-grid">${daysHTML}</div></div>
         <div class="svc-actions">
-          <button class="btn btn-primary btn-save" data-act="save">حفظ</button>
+          <button class="btn btn-primary" data-act="save">حفظ</button>
           <button class="btn btn-ghost btn-delete" data-act="delete">حذف الخدمة</button>
         </div>
       </div>`;
   }
 
-  function escapeAttr(str) {
-    return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-  }
-
   function renderServicesAdmin() {
     const box = $("#servicesAdmin");
     const list = window.YaraData.getServices();
-    box.innerHTML = list.length
-      ? list.map(serviceCardHTML).join("")
+    box.innerHTML = list.length ? list.map(serviceCardHTML).join("")
       : `<div class="empty-state"><span>💇‍♀️</span><p>لا توجد خدمات. أضيفي خدمة جديدة.</p></div>`;
 
     $$(".svc-edit", box).forEach((card) => {
-      card.querySelector('[data-act="save"]').addEventListener("click", () => saveServiceCard(card));
-      card.querySelector('[data-act="delete"]').addEventListener("click", () => deleteService(card.dataset.id));
-      // live image preview
       const imgInput = card.querySelector('[data-f="img"]');
       const preview = card.querySelector(".svc-img-preview");
-      imgInput.addEventListener("input", () => {
-        const url = imgInput.value.trim();
-        preview.innerHTML = url
-          ? `<img src="${url.replace(/"/g, "&quot;")}" alt="معاينة" onerror="this.parentNode.innerHTML='⚠'" />`
+      const setPreview = (url) => {
+        preview.innerHTML = url ? `<img src="${url.replace(/"/g,"&quot;")}" alt="" onerror="this.parentNode.innerHTML='⚠'" />`
           : `<span>${(card.querySelector('[data-f="name"]').value.trim().charAt(0)) || "?"}</span>`;
-      });
+      };
+      imgInput.addEventListener("input", () => setPreview(imgInput.value.trim()));
+      const fileInput = card.querySelector("[data-imgfile]");
+      card.querySelector('[data-act="upload"]').addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", () => readImageFile(fileInput, (dataUrl) => { imgInput.value = dataUrl; setPreview(dataUrl); }));
+      // provider chips: add + remove
+      const chipsBox = card.querySelector("[data-chips]");
+      const chipInput = card.querySelector("[data-chip-input]");
+      const addChip = () => {
+        const val = chipInput.value.trim();
+        if (!val) return;
+        const exists = $$(".chip", chipsBox).some((c) => c.dataset.provider === val);
+        if (!exists) chipsBox.insertAdjacentHTML("beforeend", chipHTML(val));
+        chipInput.value = ""; chipInput.focus();
+      };
+      card.querySelector('[data-act="addchip"]').addEventListener("click", addChip);
+      chipInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addChip(); } });
+      chipsBox.addEventListener("click", (e) => { const rm = e.target.closest("[data-remove]"); if (rm) rm.parentNode.remove(); });
+
+      card.querySelector('[data-act="save"]').addEventListener("click", () => saveServiceCard(card));
+      card.querySelector('[data-act="delete"]').addEventListener("click", () => deleteService(card.dataset.id));
     });
+  }
+
+  function readImageFile(input, cb) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 1.5 * 1024 * 1024) { alert("حجم الصورة كبير (الحد ~1.5MB). الرجاء اختيار صورة أصغر."); return; }
+    const reader = new FileReader();
+    reader.onload = () => cb(reader.result);
+    reader.readAsDataURL(file);
   }
 
   function saveServiceCard(card) {
     const id = card.dataset.id;
     const get = (f) => card.querySelector(`[data-f="${f}"]`);
     const name = get("name").value.trim() || "خدمة";
+    const desc = get("desc").value.trim();
     const duration = Math.max(5, Number(get("duration").value) || 30);
     const price = Math.max(0, Number(get("price").value) || 0);
-    const providers = get("providers").value.split(/[,،\n]/).map((x) => x.trim()).filter(Boolean);
+    const providers = $$(".chip", card).map((c) => c.dataset.provider).filter(Boolean);
     const openMin = timeToMin(get("open").value);
     const closeMin = timeToMin(get("close").value);
     const img = get("img").value.trim();
     const days = $$('input[data-day]', card).filter((c) => c.checked).map((c) => Number(c.dataset.day));
 
-    // validation
     if (!providers.length) { alert("الرجاء إدخال اسم مقدّمة واحدة على الأقل."); return; }
     if (closeMin <= openMin) { alert("يجب أن تكون نهاية الدوام بعد بدايته."); return; }
     if (closeMin - openMin < duration) { alert("مدة الدوام أقصر من مدة الخدمة."); return; }
@@ -345,29 +466,89 @@
 
     const list = window.YaraData.getServices();
     const idx = list.findIndex((s) => s.id === id);
-    const updated = { id, name, duration, price, providers, days, openMin, closeMin, img };
+    const updated = { id, name, desc, duration, price, providers, days, openMin, closeMin, img };
     if (idx > -1) list[idx] = updated; else list.push(updated);
     window.YaraData.saveServices(list);
-
     populateProviderFilter();
     flashSaved();
   }
 
   function deleteService(id) {
     if (!confirm("هل تريدين حذف هذه الخدمة؟")) return;
-    const list = window.YaraData.getServices().filter((s) => s.id !== id);
-    window.YaraData.saveServices(list);
-    renderServicesAdmin();
-    populateProviderFilter();
+    window.YaraData.saveServices(window.YaraData.getServices().filter((s) => s.id !== id));
+    renderServicesAdmin(); populateProviderFilter();
   }
 
   function flashSaved() {
     const hint = $("#saveHint");
-    hint.hidden = false;
-    clearTimeout(flashSaved._t);
+    hint.hidden = false; clearTimeout(flashSaved._t);
     flashSaved._t = setTimeout(() => { hint.hidden = true; }, 2000);
   }
 
+  /* ---------- Settings management ---------- */
+  function initSettingsView() {
+    $("#btnSaveSettings").addEventListener("click", saveSettingsFromForm);
+    $("#btnLogoUpload").addEventListener("click", () => $("#logoFile").click());
+    $("#logoFile").addEventListener("change", () =>
+      readImageFile($("#logoFile"), (dataUrl) => { $("#logoPreview").innerHTML = `<img src="${dataUrl}" alt="" />`; $("#logoPreview").dataset.logo = dataUrl; }));
+    $("#btnLogoClear").addEventListener("click", () => { $("#logoPreview").innerHTML = "✦"; $("#logoPreview").dataset.logo = ""; });
+    $("#btnAddUser").addEventListener("click", addUser);
+    // live preview on text/color change
+    $$('#viewSettings [data-s], #viewSettings [data-c]').forEach((inp) =>
+      inp.addEventListener("input", () => saveSettingsFromForm(true)));
+  }
+
+  function renderSettings() {
+    const s = window.YaraData.getSettings();
+    $$('#viewSettings [data-s]').forEach((inp) => { inp.value = s[inp.dataset.s] != null ? s[inp.dataset.s] : ""; });
+    $$('#viewSettings [data-c]').forEach((inp) => { inp.value = s.colors[inp.dataset.c] || "#000000"; });
+    const lp = $("#logoPreview");
+    lp.dataset.logo = s.logo || "";
+    lp.innerHTML = s.logo ? `<img src="${esc(s.logo)}" alt="" />` : "✦";
+    renderUsers();
+  }
+
+  function saveSettingsFromForm(silent) {
+    const s = window.YaraData.getSettings();
+    $$('#viewSettings [data-s]').forEach((inp) => { s[inp.dataset.s] = inp.value; });
+    $$('#viewSettings [data-c]').forEach((inp) => { s.colors[inp.dataset.c] = inp.value; });
+    s.logo = $("#logoPreview").dataset.logo || "";
+    window.YaraData.saveSettings(s);
+    if (!silent) flashSaved();
+  }
+
+  function renderUsers() {
+    const users = window.YaraData.getUsers();
+    const box = $("#usersList");
+    box.innerHTML = users.length
+      ? users.map((u, i) => `
+        <div class="user-row">
+          <div><b>${esc(u.name)}</b>${u.contact ? ` <small>${esc(u.contact)}</small>` : ""}</div>
+          <button class="btn btn-ghost btn-delete" data-del-user="${i}">حذف</button>
+        </div>`).join("")
+      : `<p class="hint-small">لا يوجد مستخدمون بعد.</p>`;
+    $$("[data-del-user]", box).forEach((btn) => btn.addEventListener("click", () => {
+      const list = window.YaraData.getUsers(); list.splice(Number(btn.dataset.delUser), 1);
+      window.YaraData.saveUsers(list); renderUsers();
+    }));
+  }
+  function addUser() {
+    const name = $("#uName").value.trim();
+    const contact = $("#uContact").value.trim();
+    if (!name) { alert("الرجاء إدخال الاسم."); return; }
+    const list = window.YaraData.getUsers();
+    list.push({ name, contact });
+    window.YaraData.saveUsers(list);
+    $("#uName").value = ""; $("#uContact").value = "";
+    renderUsers();
+  }
+
   /* ---------- Boot ---------- */
-  document.addEventListener("DOMContentLoaded", initAuth);
+  document.addEventListener("DOMContentLoaded", () => {
+    initAuth();
+    if ("Notification" in window && Notification.permission === "default") {
+      // request after first interaction to avoid blocking
+      document.addEventListener("click", function once() { try { Notification.requestPermission(); } catch (e) {} document.removeEventListener("click", once); }, { once: true });
+    }
+  });
 })();

@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=6" />
-  <link rel="stylesheet" href="css/admin.css?v=6" />
+  <link rel="stylesheet" href="css/styles.css?v=8" />
+  <link rel="stylesheet" href="css/admin.css?v=8" />
 </head>
 <body class="admin-body">
 
@@ -37,6 +37,7 @@
         <nav class="admin-tabs">
           <button class="tab is-active" data-view="bookings">الحجوزات</button>
           <button class="tab" data-view="services">الخدمات</button>
+          <button class="tab" data-view="settings">الإعدادات</button>
         </nav>
         <div class="admin-header-actions">
           <button class="btn btn-ghost" id="btnLogout">تسجيل الخروج</button>
@@ -90,10 +91,100 @@
         <div id="servicesAdmin"></div>
         <p class="save-hint" id="saveHint" hidden>✓ تم حفظ التغييرات</p>
       </div>
+
+      <!-- ===== View: Settings ===== -->
+      <div id="viewSettings" hidden>
+        <div class="services-admin-head">
+          <div>
+            <h2 class="sa-title">إعدادات الموقع</h2>
+            <p class="sa-sub">عدّلي النصوص والألوان والشعار وبيانات التواصل — تنعكس فوراً على الواجهة الرئيسية.</p>
+          </div>
+          <button class="btn btn-primary" id="btnSaveSettings">حفظ الإعدادات</button>
+        </div>
+
+        <div class="settings-grid">
+          <section class="settings-card">
+            <h3>الهوية والشعار</h3>
+            <label class="field"><span>اسم المركز</span><input type="text" data-s="brandName" /></label>
+            <div class="field"><span>الشعار (اختياري)</span>
+              <div class="logo-row">
+                <div class="logo-preview" id="logoPreview">✦</div>
+                <div class="logo-actions">
+                  <input type="file" id="logoFile" accept="image/*" hidden />
+                  <button class="btn btn-ghost" id="btnLogoUpload">رفع شعار</button>
+                  <button class="btn btn-ghost" id="btnLogoClear">إزالة</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-card">
+            <h3>الألوان</h3>
+            <div class="color-grid">
+              <label class="color-field"><span>الذهبي</span><input type="color" data-c="gold" /></label>
+              <label class="color-field"><span>ذهبي غامق</span><input type="color" data-c="goldDark" /></label>
+              <label class="color-field"><span>الوردي</span><input type="color" data-c="rose" /></label>
+              <label class="color-field"><span>البيج</span><input type="color" data-c="beige" /></label>
+              <label class="color-field"><span>لون النص</span><input type="color" data-c="ink" /></label>
+            </div>
+          </section>
+
+          <section class="settings-card settings-wide">
+            <h3>نصوص الصفحة الرئيسية</h3>
+            <label class="field"><span>سطر الترحيب</span><input type="text" data-s="heroEyebrow" /></label>
+            <label class="field"><span>العنوان الرئيسي</span><input type="text" data-s="heroTitle" /></label>
+            <label class="field"><span>الوصف الرئيسي</span><textarea rows="2" data-s="heroSub"></textarea></label>
+            <label class="field"><span>عنوان قسم الخدمات</span><input type="text" data-s="servicesTitle" /></label>
+            <label class="field"><span>وصف قسم الخدمات</span><input type="text" data-s="servicesDesc" /></label>
+            <label class="field"><span>عنوان «من نحن»</span><input type="text" data-s="aboutTitle" /></label>
+            <label class="field"><span>نص «من نحن»</span><textarea rows="3" data-s="aboutText"></textarea></label>
+          </section>
+
+          <section class="settings-card">
+            <h3>بيانات التواصل</h3>
+            <label class="field"><span>الهاتف</span><input type="text" data-s="contactPhone" /></label>
+            <label class="field"><span>واتساب (بصيغة دولية)</span><input type="text" data-s="contactWhatsapp" placeholder="970590000000" /></label>
+            <label class="field"><span>العنوان</span><input type="text" data-s="contactAddress" /></label>
+          </section>
+
+          <section class="settings-card">
+            <h3>مستخدمو استقبال الحجوزات</h3>
+            <p class="hint-small">أضيفي أعضاء الفريق الذين يتلقّون تنبيه الحجوزات على هذا الجهاز.</p>
+            <div class="user-add">
+              <input type="text" id="uName" placeholder="الاسم" />
+              <input type="text" id="uContact" placeholder="هاتف / بريد" />
+              <button class="btn btn-primary" id="btnAddUser">إضافة</button>
+            </div>
+            <div id="usersList"></div>
+          </section>
+        </div>
+      </div>
     </main>
   </div>
 
-  <script src="js/data.js?v=6"></script>
-  <script src="js/admin.js?v=6"></script>
+  <!-- ===== Booking details popup ===== -->
+  <div class="modal" id="bookingModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-dialog bk-dialog">
+      <button class="modal-close" data-close-modal aria-label="إغلاق">✕</button>
+      <h3 class="bk-modal-title">تفاصيل الحجز</h3>
+      <div id="bkDetails"></div>
+      <div class="bk-status-picker">
+        <span class="bk-status-label">تغيير الحالة:</span>
+        <div class="bk-status-btns" id="bkStatusBtns"></div>
+      </div>
+      <div class="bk-modal-actions">
+        <button class="btn btn-ghost" id="bkArchive">أرشفة</button>
+        <button class="btn btn-ghost btn-delete" id="bkDelete">حذف</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Toast notifications ===== -->
+  <div class="toast-wrap" id="toastWrap"></div>
+  <audio id="notifySound" src="assets/notify.mp3" preload="auto"></audio>
+
+  <script src="js/data.js?v=8"></script>
+  <script src="js/admin.js?v=8"></script>
 </body>
 </html>

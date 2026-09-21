@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=6" />
+  <link rel="stylesheet" href="css/styles.css?v=8" />
 </head>
 <body>
 
@@ -32,9 +32,9 @@
   <section class="hero">
     <div class="hero-overlay"></div>
     <div class="container hero-content">
-      <p class="hero-eyebrow">أهلاً بكِ في عالم الجمال</p>
-      <h1 class="hero-title">تألّقي مع <span>Yara Glow</span></h1>
-      <p class="hero-sub">
+      <p class="hero-eyebrow" id="s-heroEyebrow">أهلاً بكِ في عالم الجمال</p>
+      <h1 class="hero-title" id="s-heroTitle">تألّقي مع <span>Yara Glow</span></h1>
+      <p class="hero-sub" id="s-heroSub">
         مركز تجميل فاخر يجمع بين الرقّة والاحتراف. نمنحكِ تجربة عناية استثنائية
         بأيدي خبيرات متخصصات، في أجواء أنيقة تُشعركِ بالدلال والراحة.
       </p>
@@ -55,8 +55,8 @@
     <div class="container">
       <div class="section-head">
         <p class="section-eyebrow">خدماتنا</p>
-        <h2 class="section-title">لمسة جمال تليق بكِ</h2>
-        <p class="section-desc">اختاري الخدمة التي تناسبكِ واحجزي موعدكِ في خطوات بسيطة.</p>
+        <h2 class="section-title" id="s-servicesTitle">لمسة جمال تليق بكِ</h2>
+        <p class="section-desc" id="s-servicesDesc">اختاري الخدمة التي تناسبكِ واحجزي موعدكِ في خطوات بسيطة.</p>
       </div>
       <div class="services-grid" id="servicesGrid"><!-- injected by JS --></div>
     </div>
@@ -70,8 +70,8 @@
       </div>
       <div class="about-text">
         <p class="section-eyebrow">من نحن</p>
-        <h2 class="section-title">جمالكِ.. شغفنا</h2>
-        <p>
+        <h2 class="section-title" id="s-aboutTitle">جمالكِ.. شغفنا</h2>
+        <p id="s-aboutText">
           في <strong>Yara Glow</strong> نؤمن أنّ لكلّ امرأة تألّقها الخاص. لذلك نقدّم
           خدمات تجميل راقية تعتمد على أجود المنتجات وأحدث التقنيات، ضمن بيئة نظيفة
           وهادئة صُمّمت خصيصاً لراحتكِ.
@@ -93,12 +93,12 @@
       <h2 class="section-title">جاهزة لتتألّقي؟</h2>
       <p>احجزي موعدكِ الآن أو تواصلي معنا مباشرةً.</p>
       <div class="contact-info">
-        <a href="tel:+970590000000" class="contact-card">
+        <a href="tel:059-000-0000" class="contact-card" id="s-phoneLink">
           <span class="ci-icon">📞</span>
           <span class="ci-label">اتصلي بنا</span>
-          <span class="ci-value">059-000-0000</span>
+          <span class="ci-value" id="s-contactPhone">059-000-0000</span>
         </a>
-        <a href="https://wa.me/970590000000" class="contact-card" target="_blank" rel="noopener">
+        <a href="https://wa.me/970590000000" class="contact-card" id="s-whatsappLink" target="_blank" rel="noopener">
           <span class="ci-icon">💬</span>
           <span class="ci-label">واتساب</span>
           <span class="ci-value">تواصل مباشر</span>
@@ -106,7 +106,7 @@
         <div class="contact-card">
           <span class="ci-icon">📍</span>
           <span class="ci-label">موقعنا</span>
-          <span class="ci-value">شارع الجمال، المدينة</span>
+          <span class="ci-value" id="s-contactAddress">شارع الجمال، المدينة</span>
         </div>
       </div>
       <button class="btn btn-primary btn-lg" data-open-booking>احجزي الآن</button>
@@ -214,7 +214,7 @@
     </div>
   </div>
 
-  <script src="js/data.js?v=6"></script>
-  <script src="js/app.js?v=6"></script>
+  <script src="js/data.js?v=8"></script>
+  <script src="js/app.js?v=8"></script>
 </body>
 </html>

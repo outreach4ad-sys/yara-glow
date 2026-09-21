@@ -133,7 +133,7 @@ a { color: inherit; text-decoration: none; }
 .services-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr); /* four in a row on desktop */
-  gap: 40px 28px; justify-items: center;
+  gap: 50px 44px; justify-items: center;
 }
 
 /* ===== Interactive 3D tilt service card ===== */
