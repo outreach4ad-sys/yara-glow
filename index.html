@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/styles.css?v=3" />
 </head>
 <body>
 
@@ -143,6 +143,7 @@
           <div class="step" data-step="2"><span>2</span><em>المزوّدة</em></div>
           <div class="step" data-step="3"><span>3</span><em>التاريخ</em></div>
           <div class="step" data-step="4"><span>4</span><em>الوقت</em></div>
+          <div class="step" data-step="5"><span>5</span><em>البيانات</em></div>
         </div>
       </div>
 
@@ -170,16 +171,27 @@
           <p class="step-hint">اختاري الوقت المناسب لكِ:</p>
           <div class="time-grid" id="timeSlots"></div>
           <div class="empty-times" id="emptyTimes" hidden>لا توجد أوقات متاحة في هذا اليوم، الرجاء اختيار يوم آخر.</div>
+        </div>
+
+        <!-- Step 5: Customer details + summary -->
+        <div class="wizard-step" data-step-panel="5">
+          <div class="review-summary" id="reviewSummary"></div>
+          <p class="step-hint">أكملي بياناتكِ لتأكيد الحجز:</p>
           <div class="cust-fields">
             <label class="field">
-              <span>الاسم</span>
-              <input type="text" id="custName" placeholder="اكتبي اسمكِ" autocomplete="name" />
+              <span>الاسم <em>*</em></span>
+              <input type="text" id="custName" placeholder="اكتبي اسمكِ الكامل" autocomplete="name" required />
             </label>
             <label class="field">
-              <span>رقم الهاتف <em>(اختياري)</em></span>
-              <input type="tel" id="custPhone" placeholder="05x-xxx-xxxx" autocomplete="tel" />
+              <span>رقم الهاتف <em>*</em></span>
+              <input type="tel" id="custPhone" placeholder="05x-xxx-xxxx" autocomplete="tel" required />
             </label>
           </div>
+          <label class="field field-full">
+            <span>ملاحظات <em>(اختياري)</em></span>
+            <textarea id="custNotes" rows="3" placeholder="أي تفاصيل تودّين إخبارنا بها..."></textarea>
+          </label>
+          <p class="form-error" id="formError" hidden></p>
         </div>
 
         <!-- Confirmation -->
@@ -202,6 +214,6 @@
     </div>
   </div>
 
-  <script src="js/app.js?v=2"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>

@@ -129,6 +129,7 @@
     if (step === 2) renderProviderOptions();
     if (step === 3) renderCalendar();
     if (step === 4) renderTimeSlots();
+    if (step === 5) renderReview();
 
     updateFooter();
   }
@@ -138,9 +139,15 @@
     const next = $("#btnNext");
     back.disabled = state.step === 1;
 
-    const ready = { 1: !!state.service, 2: !!state.provider, 3: !!state.date, 4: !!state.time }[state.step];
+    const ready = {
+      1: !!state.service,
+      2: !!state.provider,
+      3: !!state.date,
+      4: state.time != null,
+      5: true, // validation happens on confirm
+    }[state.step];
     next.disabled = !ready;
-    next.textContent = state.step === 4 ? "تأكيد الحجز" : "التالي";
+    next.textContent = state.step === 5 ? "تأكيد الحجز" : "التالي";
 
     // recap line
     const bits = [];
@@ -292,13 +299,50 @@
     });
   }
 
+  function showFormError(msg) {
+    const err = $("#formError");
+    err.textContent = msg;
+    err.hidden = false;
+  }
+
+  /* ---------- Step 5: review summary ---------- */
+  function renderReview() {
+    const svc = state.service;
+    const start = state.time;
+    const end = start + svc.duration;
+    $("#reviewSummary").innerHTML = `
+      <h4>ملخّص الحجز</h4>
+      <div class="row"><span>الخدمة</span><b>${svc.name}</b></div>
+      <div class="row"><span>المزوّدة</span><b>${state.provider}</b></div>
+      <div class="row"><span>الموعد</span><b>${formatDateAr(state.date)} — ${minToLabel(start)} إلى ${minToLabel(end)}</b></div>
+      <div class="row"><span>المدة</span><b>${svc.duration} دقيقة</b></div>
+      <div class="row"><span>السعر</span><b>₪ ${svc.price}</b></div>`;
+    $("#formError").hidden = true;
+  }
+
   /* ---------- Confirm ---------- */
   function confirmBooking() {
     const svc = state.service;
     const start = state.time;
     const end = start + svc.duration;
-    const name = ($("#custName").value || "").trim() || "زائرة";
+    const name = ($("#custName").value || "").trim();
     const phone = ($("#custPhone").value || "").trim();
+    const notes = ($("#custNotes").value || "").trim();
+    const err = $("#formError");
+
+    // Validate required customer fields
+    if (!name) { showFormError("الرجاء إدخال الاسم."); $("#custName").focus(); return; }
+    if (!phone) { showFormError("الرجاء إدخال رقم الهاتف."); $("#custPhone").focus(); return; }
+
+    // Prevent double-booking: re-check the slot is still free for this provider
+    const busy = bookedIntervals(dateKey(state.date), state.provider);
+    const clash = busy.some(([bs, be]) => start < be && end > bs);
+    if (clash) {
+      showFormError("عذراً، تمّ حجز هذا الوقت للتوّ. الرجاء اختيار وقت آخر.");
+      goToStep(4); // back to time selection (slot will now appear disabled)
+      return;
+    }
+    err.hidden = true;
 
     saveBookingRecord({
       id: "bk_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
@@ -312,18 +356,21 @@
       price: svc.price,
       name: name,
       phone: phone,
+      notes: notes,
       status: "new",
       createdAt: new Date().toISOString(),
     });
 
     $("#bookingSummary").innerHTML = `
       <div class="row"><span>الاسم</span><b>${name}</b></div>
+      <div class="row"><span>الهاتف</span><b>${phone}</b></div>
       <div class="row"><span>الخدمة</span><b>${svc.name}</b></div>
       <div class="row"><span>المزوّدة</span><b>${state.provider}</b></div>
       <div class="row"><span>التاريخ</span><b>${formatDateAr(state.date)}</b></div>
       <div class="row"><span>الوقت</span><b>${minToLabel(start)} — ${minToLabel(end)}</b></div>
       <div class="row"><span>المدة</span><b>${svc.duration} دقيقة</b></div>
-      <div class="row"><span>السعر</span><b>₪ ${svc.price}</b></div>`;
+      <div class="row"><span>السعر</span><b>₪ ${svc.price}</b></div>
+      ${notes ? `<div class="row"><span>ملاحظات</span><b>${notes}</b></div>` : ""}`;
 
     $$(".step").forEach((el) => el.classList.add("is-done"));
     $$(".wizard-step").forEach((p) => p.classList.remove("is-active"));
@@ -340,7 +387,7 @@
     $$("[data-close-booking]").forEach((b) => b.addEventListener("click", closeBooking));
 
     $("#btnNext").addEventListener("click", () => {
-      if (state.step === 4) { confirmBooking(); return; }
+      if (state.step === 5) { confirmBooking(); return; }
       goToStep(state.step + 1);
     });
     $("#btnBack").addEventListener("click", () => {

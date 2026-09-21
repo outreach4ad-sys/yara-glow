@@ -312,6 +312,27 @@ a.contact-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md)
 .field input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,161,90,.18); }
 @media (max-width: 520px) { .cust-fields { grid-template-columns: 1fr; } }
 
+.field-full { margin-top: 14px; }
+.field textarea {
+  font-family: var(--font); font-size: 1rem; padding: 11px 14px; resize: vertical;
+  border: 1.5px solid var(--sand); border-radius: 12px; background: var(--white);
+  color: var(--ink); transition: border-color .18s, box-shadow .18s;
+}
+.field textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,161,90,.18); }
+.field span em { color: var(--gold-dark); }
+.form-error { color: #c0392b; font-weight: 700; margin-top: 12px; }
+
+/* Review summary (step 5) */
+.review-summary {
+  background: var(--white); border-radius: var(--radius); padding: 16px 20px;
+  box-shadow: var(--shadow-sm); margin-bottom: 20px; border: 1px solid rgba(201,161,90,.14);
+}
+.review-summary h4 { font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 10px; color: var(--gold-dark); }
+.review-summary .row { display: flex; justify-content: space-between; padding-block: 7px; border-bottom: 1px dashed var(--sand); }
+.review-summary .row:last-child { border-bottom: none; }
+.review-summary .row span { color: var(--ink-soft); }
+.review-summary .row b { font-weight: 700; }
+
 /* Success */
 .booking-success { text-align: center; padding: 14px 6px; }
 .success-icon {
