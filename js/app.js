@@ -473,16 +473,87 @@
     });
   }
 
+  /* ---------- Gallery slider (autoplay, infinite loop) ---------- */
+  const AUTOPLAY_MS = 3000;
+  let galleryImgs = [];
+  let slideIndex = 0;
+  let slideTimer = null;
+
+  function renderGallery() {
+    if (!window.YaraData) return;
+    galleryImgs = window.YaraData.getGallery();
+    const section = $("#gallery");
+    const track = $("#sliderTrack");
+    const thumbs = $("#sliderThumbs");
+    const dots = $("#sliderDots");
+    if (!track) return;
+
+    if (!galleryImgs.length) { section.hidden = true; stopAutoplay(); return; }
+    section.hidden = false;
+
+    track.innerHTML = galleryImgs.map((src) =>
+      `<div class="slider-slide"><img src="${src}" alt="من أعمال Yara Glow" loading="lazy" /></div>`).join("");
+    thumbs.innerHTML = galleryImgs.map((src, i) =>
+      `<button data-idx="${i}"><img src="${src}" alt="مصغّرة ${i + 1}" loading="lazy" /></button>`).join("");
+    dots.innerHTML = galleryImgs.map((_, i) => `<button data-idx="${i}" aria-label="شريحة ${i + 1}"></button>`).join("");
+
+    $$("#sliderThumbs button", thumbs).forEach((b) => b.addEventListener("click", () => goToSlide(Number(b.dataset.idx), true)));
+    $$("#sliderDots button", dots).forEach((b) => b.addEventListener("click", () => goToSlide(Number(b.dataset.idx), true)));
+
+    if (slideIndex >= galleryImgs.length) slideIndex = 0;
+    updateSlider();
+    startAutoplay();
+  }
+
+  function updateSlider() {
+    const track = $("#sliderTrack");
+    if (!track) return;
+    // RTL: move track to the right for later slides
+    track.style.transform = `translateX(${slideIndex * 100}%)`;
+    $$("#sliderThumbs button").forEach((b, i) => b.classList.toggle("active", i === slideIndex));
+    $$("#sliderDots button").forEach((b, i) => b.classList.toggle("active", i === slideIndex));
+  }
+
+  function goToSlide(i, userAction) {
+    const n = galleryImgs.length;
+    slideIndex = (i % n + n) % n; // wrap → infinite loop
+    updateSlider();
+    if (userAction) startAutoplay(); // reset timer on manual nav
+  }
+  function nextSlide() { goToSlide(slideIndex + 1); }
+  function prevSlide() { goToSlide(slideIndex - 1); }
+
+  function startAutoplay() {
+    stopAutoplay();
+    if (galleryImgs.length > 1) slideTimer = setInterval(nextSlide, AUTOPLAY_MS);
+  }
+  function stopAutoplay() { if (slideTimer) { clearInterval(slideTimer); slideTimer = null; } }
+
+  function initSlider() {
+    const prev = $("#sliderPrev"), next = $("#sliderNext"), main = $("#sliderMain");
+    if (!prev) return;
+    prev.addEventListener("click", () => goToSlide(slideIndex - 1, true));
+    next.addEventListener("click", () => goToSlide(slideIndex + 1, true));
+    // pause on hover, resume on leave
+    main.addEventListener("mouseenter", stopAutoplay);
+    main.addEventListener("mouseleave", startAutoplay);
+    // pause when tab hidden
+    document.addEventListener("visibilitychange", () => { document.hidden ? stopAutoplay() : startAutoplay(); });
+    renderGallery();
+  }
+
   function init() {
     applySettings();
     loadServices();
     renderServices();
+    initSlider();
     $("#year").textContent = new Date().getFullYear();
 
-    // live update when settings/services change in another tab
+    // live update when settings/services/gallery change in another tab
     window.addEventListener("storage", (e) => {
       if (e.key === window.YaraData.SETTINGS_KEY) applySettings();
       if (e.key === window.YaraData.SERVICES_KEY) { loadServices(); renderServices(); }
+      if (e.key === window.YaraData.GALLERY_KEY) renderGallery();
     });
 
     $$("[data-open-booking]").forEach((b) => b.addEventListener("click", () => openBooking()));

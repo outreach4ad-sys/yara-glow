@@ -99,6 +99,7 @@
     $$(".tab").forEach((t) => t.addEventListener("click", () => switchView(t.dataset.view)));
     initServicesView();
     initSettingsView();
+    initGalleryView();
     initBookingModal();
 
     $("#fDay").addEventListener("change", render);
@@ -152,9 +153,11 @@
     $("#viewBookings").hidden = view !== "bookings";
     $("#viewServices").hidden = view !== "services";
     $("#viewSettings").hidden = view !== "settings";
+    $("#viewGallery").hidden = view !== "gallery";
     if (view === "bookings") { populateProviderFilter(); render(); }
     if (view === "services") renderServicesAdmin();
     if (view === "settings") renderSettings();
+    if (view === "gallery") renderGalleryAdmin();
   }
 
   /* ---------- Bookings rendering ---------- */
@@ -541,6 +544,60 @@
     window.YaraData.saveUsers(list);
     $("#uName").value = ""; $("#uContact").value = "";
     renderUsers();
+  }
+
+  /* ---------- Gallery management ---------- */
+  function initGalleryView() {
+    $("#btnGalleryUpload").addEventListener("click", () => $("#galleryFile").click());
+    $("#galleryFile").addEventListener("change", () => {
+      const files = Array.from($("#galleryFile").files || []);
+      if (!files.length) return;
+      let pending = files.length;
+      const list = window.YaraData.getGallery();
+      files.forEach((file) => {
+        if (file.size > 1.5 * 1024 * 1024) { alert("صورة كبيرة تجاوزت ~1.5MB وتم تخطّيها: " + file.name); if (--pending === 0) finish(); return; }
+        const reader = new FileReader();
+        reader.onload = () => { list.push(reader.result); if (--pending === 0) finish(); };
+        reader.onerror = () => { if (--pending === 0) finish(); };
+        reader.readAsDataURL(file);
+      });
+      function finish() { window.YaraData.saveGallery(list); $("#galleryFile").value = ""; renderGalleryAdmin(); flashGallery(); }
+    });
+  }
+
+  function renderGalleryAdmin() {
+    const box = $("#galleryAdmin");
+    const list = window.YaraData.getGallery();
+    box.innerHTML = list.length
+      ? list.map((src, i) => `
+        <div class="gal-item" data-i="${i}">
+          <img src="${esc(src)}" alt="صورة ${i + 1}" />
+          <div class="gal-actions">
+            <button data-move="-1" title="لليمين" ${i === 0 ? "disabled" : ""}>›</button>
+            <button data-move="1" title="لليسار" ${i === list.length - 1 ? "disabled" : ""}>‹</button>
+            <button data-del title="حذف" class="gal-del">✕</button>
+          </div>
+        </div>`).join("")
+      : `<div class="empty-state"><span>🖼️</span><p>لا توجد صور. ارفعي صوراً للمعرض.</p></div>`;
+
+    $$(".gal-item", box).forEach((el) => {
+      const i = Number(el.dataset.i);
+      el.querySelector("[data-del]").addEventListener("click", () => {
+        const l = window.YaraData.getGallery(); l.splice(i, 1); window.YaraData.saveGallery(l); renderGalleryAdmin();
+      });
+      $$("[data-move]", el).forEach((btn) => btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        const l = window.YaraData.getGallery();
+        const j = i + Number(btn.dataset.move);
+        if (j < 0 || j >= l.length) return;
+        [l[i], l[j]] = [l[j], l[i]];
+        window.YaraData.saveGallery(l); renderGalleryAdmin();
+      }));
+    });
+  }
+  function flashGallery() {
+    const h = $("#galleryHint"); h.hidden = false; clearTimeout(flashGallery._t);
+    flashGallery._t = setTimeout(() => { h.hidden = true; }, 2000);
   }
 
   /* ---------- Boot ---------- */

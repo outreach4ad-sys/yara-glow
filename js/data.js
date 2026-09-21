@@ -7,6 +7,27 @@ window.YaraData = (function () {
   const SERVICES_KEY = "yaraGlowServices";
   const SETTINGS_KEY = "yaraGlowSettings";
   const USERS_KEY = "yaraGlowUsers";
+  const GALLERY_KEY = "yaraGlowGallery";
+
+  const DEFAULT_GALLERY = [
+    "assets/service-cut.svg",
+    "assets/service-color.svg",
+    "assets/service-skin.svg",
+    "assets/service-makeup.svg",
+  ];
+
+  function getGallery() {
+    let g;
+    try { g = JSON.parse(localStorage.getItem(GALLERY_KEY)); } catch (e) { g = null; }
+    if (!Array.isArray(g)) {
+      g = DEFAULT_GALLERY.slice();
+      try { localStorage.setItem(GALLERY_KEY, JSON.stringify(g)); } catch (e) {}
+    }
+    return g;
+  }
+  function saveGallery(list) {
+    try { localStorage.setItem(GALLERY_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+  }
 
   const DEFAULT_SETTINGS = {
     brandName: "Yara Glow",
@@ -95,5 +116,6 @@ window.YaraData = (function () {
     getServices, saveServices, newService, SERVICES_KEY,
     getSettings, saveSettings, SETTINGS_KEY, DEFAULT_SETTINGS,
     getUsers, saveUsers, USERS_KEY,
+    getGallery, saveGallery, GALLERY_KEY,
   };
 })();

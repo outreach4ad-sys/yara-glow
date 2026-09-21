@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=8" />
-  <link rel="stylesheet" href="css/admin.css?v=8" />
+  <link rel="stylesheet" href="css/styles.css?v=9" />
+  <link rel="stylesheet" href="css/admin.css?v=9" />
 </head>
 <body class="admin-body">
 
@@ -37,6 +37,7 @@
         <nav class="admin-tabs">
           <button class="tab is-active" data-view="bookings">الحجوزات</button>
           <button class="tab" data-view="services">الخدمات</button>
+          <button class="tab" data-view="gallery">المعرض</button>
           <button class="tab" data-view="settings">الإعدادات</button>
         </nav>
         <div class="admin-header-actions">
@@ -90,6 +91,22 @@
         </div>
         <div id="servicesAdmin"></div>
         <p class="save-hint" id="saveHint" hidden>✓ تم حفظ التغييرات</p>
+      </div>
+
+      <!-- ===== View: Gallery ===== -->
+      <div id="viewGallery" hidden>
+        <div class="services-admin-head">
+          <div>
+            <h2 class="sa-title">معرض الصور</h2>
+            <p class="sa-sub">ارفعي صور المعرض — تظهر في شريط متحرك يتنقّل كل 3 ثوانٍ بشكل لا نهائي على الواجهة.</p>
+          </div>
+          <div>
+            <input type="file" id="galleryFile" accept="image/*" multiple hidden />
+            <button class="btn btn-primary" id="btnGalleryUpload">+ رفع صور</button>
+          </div>
+        </div>
+        <div class="gallery-grid" id="galleryAdmin"></div>
+        <p class="save-hint" id="galleryHint" hidden>✓ تم الحفظ</p>
       </div>
 
       <!-- ===== View: Settings ===== -->
@@ -184,7 +201,7 @@
   <div class="toast-wrap" id="toastWrap"></div>
   <audio id="notifySound" src="assets/notify.mp3" preload="auto"></audio>
 
-  <script src="js/data.js?v=8"></script>
-  <script src="js/admin.js?v=8"></script>
+  <script src="js/data.js?v=9"></script>
+  <script src="js/admin.js?v=9"></script>
 </body>
 </html>
