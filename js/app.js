@@ -51,36 +51,64 @@
   function renderServices() {
     const grid = $("#servicesGrid");
     grid.innerHTML = SERVICES.map((s) => {
-      const media = s.img
-        ? `<img src="${s.img}" alt="${s.name}" loading="lazy" />`
-        : `<div class="sc-placeholder">${s.name.charAt(0)}</div>`;
+      const bg = s.img
+        ? `<img class="sc-bg" src="${s.img}" alt="${s.name}" loading="lazy" />`
+        : `<div class="sc-bg sc-placeholder">${s.name.charAt(0)}</div>`;
       const provLabel = s.providers.length > 1
-        ? `${s.providers.length} مزوّدات`
-        : s.providers[0];
+        ? `مع ${s.providers.length} مزوّدات · ⏱ ${s.duration} دقيقة`
+        : `مع ${s.providers[0]} · ⏱ ${s.duration} دقيقة`;
+      const dots = Array.from({ length: 4 }, (_, i) => `<i class="${i === 0 ? "on" : ""}"></i>`).join("");
       return `
-      <article class="service-card">
-        <div class="sc-media">
-          ${media}
-          <span class="sc-price">₪ ${s.price}</span>
-        </div>
-        <div class="sc-body">
-          <h3 class="sc-name">${s.name}</h3>
-          <div class="sc-meta">
-            <span>⏱ ${s.duration} دقيقة</span>
-            <span>₪ ${s.price}</span>
+      <article class="service-card" data-book="${s.id}" tabindex="0" role="button" aria-label="احجزي ${s.name}">
+        ${bg}
+        <div class="sc-overlay"></div>
+        <div class="sc-content">
+          <div class="sc-glass">
+            <div>
+              <h3 class="sc-name">${s.name}</h3>
+              <p class="sc-desc">${provLabel}</p>
+            </div>
+            <span class="sc-logo">✦</span>
           </div>
-          <div class="sc-provider">
-            <span class="sc-avatar">${s.providers[0].charAt(0)}</span>
-            <div><small>المزوّدة</small><b>${provLabel}</b></div>
+          <div class="sc-price-tag">₪ ${s.price}</div>
+          <div class="sc-footer">
+            <div class="sc-dots">${dots}</div>
+            <button class="sc-book" data-book="${s.id}">احجزي الآن</button>
           </div>
-          <button class="btn btn-primary" data-book="${s.id}">احجزي</button>
         </div>
       </article>`;
     }).join("");
 
-    $$("[data-book]", grid).forEach((btn) =>
-      btn.addEventListener("click", () => openBooking(btn.dataset.book))
+    // booking triggers (card + button)
+    $$("[data-book]", grid).forEach((el) =>
+      el.addEventListener("click", (e) => { e.stopPropagation(); openBooking(el.dataset.book); })
     );
+    // keyboard access for cards
+    $$(".service-card", grid).forEach((card) => {
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openBooking(card.dataset.book); }
+      });
+      attachTilt(card);
+    });
+  }
+
+  /* ---------- 3D tilt effect ---------- */
+  function attachTilt(card) {
+    const MAX = 8; // degrees
+    card.addEventListener("mousemove", (e) => {
+      const r = card.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      const rotateX = ((y - r.height / 2) / (r.height / 2)) * -MAX;
+      const rotateY = ((x - r.width / 2) / (r.width / 2)) * MAX;
+      card.style.transition = "transform .1s ease-out";
+      card.style.transform =
+        `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05,1.05,1.05)`;
+    });
+    card.addEventListener("mouseleave", () => {
+      card.style.transition = "transform .4s ease-in-out";
+      card.style.transform = "perspective(1000px) rotateX(0) rotateY(0) scale3d(1,1,1)";
+    });
   }
 
   /* ---------- Modal control ---------- */
